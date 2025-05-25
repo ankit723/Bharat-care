@@ -1,0 +1,20 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const compounderController_1 = require("../controllers/compounderController");
+const authMiddleware_1 = require("../middleware/authMiddleware");
+const router = express_1.default.Router();
+router.get('/', authMiddleware_1.authenticate, compounderController_1.getCompounders);
+router.get('/:id', authMiddleware_1.authenticate, compounderController_1.getCompounderById);
+router.post('/', compounderController_1.createCompounder);
+router.put('/:id', authMiddleware_1.authenticate, compounderController_1.updateCompounder);
+router.delete('/:id', authMiddleware_1.authenticate, compounderController_1.deleteCompounder);
+router.post('/assign-hospital', authMiddleware_1.authenticate, compounderController_1.assignCompounderToHospital);
+router.post('/assign-clinic', authMiddleware_1.authenticate, compounderController_1.assignCompounderToClinic);
+router.post('/assign-medstore', authMiddleware_1.authenticate, compounderController_1.assignCompounderToMedStore);
+router.post('/remove-clinic', authMiddleware_1.authenticate, compounderController_1.removeCompounderFromClinic);
+router.post('/remove-medstore', authMiddleware_1.authenticate, compounderController_1.removeCompounderFromMedStore);
+exports.default = router;

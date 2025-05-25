@@ -1,0 +1,252 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  DOCTOR
+  PATIENT
+  HOSPITAL
+  CLINIC
+  COMPOUNDER
+  MEDSTORE
+  CHECKUP_CENTER
+  ADMIN
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum DocumentType {
+  PRESCRIPTION
+  MEDICAL_REPORT
+}
+
+model Doctor {
+  id            String   @id @default(uuid())
+  role          String   @default("doctor")
+  name          String
+  phone         String
+  addressLine   String
+  city          String
+  state         String
+  pin           String
+  country       String
+  email         String   @unique
+  password      String
+  verificationStatus VerificationStatus @default(PENDING)
+  clinicId      String?  @unique
+  clinic        Clinic?  @relation(fields: [clinicId], references: [id])
+
+  hospitals      Hospital[]
+
+  medDocuments MedDocument[] @relation("DoctorMedDocuments")
+
+  reviews Review[]
+
+  patients Patient[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Clinic {
+  id            String   @id @default(uuid())
+  role          String   @default("clinic")
+  name          String
+  email         String   @unique
+  password      String
+  phone         String
+  addressLine   String
+  city          String
+  state         String
+  pin           String
+  country       String
+  verificationStatus VerificationStatus @default(PENDING)
+  doctor        Doctor?  @relation
+
+  compounder    Compounder?  @relation
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Compounder {
+  id            String   @id @default(uuid())
+  role          String   @default("compounder")
+  name          String
+  email         String   @unique
+  password      String
+  phone         String
+  addressLine   String
+  city          String
+  state String
+  pin String
+  country String
+  verificationStatus VerificationStatus @default(PENDING)
+  clinicId String? @unique
+  clinic Clinic? @relation(fields: [clinicId], references: [id])
+
+  medStoreId String? @unique
+  medStore MedStore? @relation(fields: [medStoreId], references: [id])
+
+  hospitals Hospital[]
+
+  reviews Review[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MedStore {
+  id            String   @id @default(uuid())
+  role          String   @default("medStore")
+  name          String
+  email         String   @unique
+  password      String
+  phone         String
+  addressLine String
+  city String
+  state String
+  pin String
+  country String
+
+  compounder Compounder? @relation()
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Hospital {
+  id            String   @id @default(uuid())
+  role          String   @default("hospital")
+  name          String
+  email         String   @unique
+  password      String
+  phone         String
+  addressLine   String
+  city          String
+  state String
+  pin String
+  country String
+  verificationStatus VerificationStatus @default(PENDING)
+
+  compounder Compounder[]
+  doctor Doctor[]
+
+  reviews Review[]
+
+  patients Patient[]
+
+  createdAt DateTime @default(now())
+}
+
+model CheckupCenter {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  password      String
+  phone         String
+  addressLine   String
+  city          String
+  state         String
+  pin           String
+  country       String
+  verificationStatus VerificationStatus @default(PENDING)
+
+  patients      Patient[]     @relation("CheckupCenterPatients")
+  medDocuments  MedDocument[] @relation("CheckupCenterMedDocuments")
+
+  reviews Review[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MedDocument {
+  id            String   @id @default(uuid())
+  fileName      String
+  fileUrl       String
+  documentType  DocumentType
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  uploadedById  String 
+  uploaderType  Role
+
+  permittedDoctorIds        String[] @default([])
+  permittedCheckupCenterIds String[] @default([])
+  
+  description   String?
+
+  doctorId        String?
+  doctor          Doctor?  @relation("DoctorMedDocuments", fields: [doctorId], references: [id])
+  
+  checkupCenterId String?
+  checkupCenter   CheckupCenter? @relation("CheckupCenterMedDocuments", fields: [checkupCenterId], references: [id])
+  
+  patientUploaderId String?
+  patientUploader   Patient?       @relation("PatientUploadedMedDocuments", fields: [patientUploaderId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Patient {
+  id            String   @id @default(uuid())
+  role          String   @default("patient")
+  name          String
+  email         String   @unique
+  password      String
+  phone         String
+  addressLine   String
+  city          String
+  state String
+  pin String
+  country String
+
+  doctors Doctor[]
+
+  checkupCenters CheckupCenter[] @relation("CheckupCenterPatients")
+  
+  uploadedMedDocuments MedDocument[] @relation("PatientUploadedMedDocuments")
+  associatedMedDocuments MedDocument[]
+
+  hospitals Hospital[]
+  reviews Review[]
+
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int
+  comment   String?
+
+  hospitalId String?
+  hospital Hospital? @relation(fields: [hospitalId], references: [id])
+
+  doctorId String?
+  doctor Doctor? @relation(fields: [doctorId], references: [id])
+
+  compounderId String?
+  compounder Compounder? @relation(fields: [compounderId], references: [id])
+
+  patientId String?
+  patient Patient? @relation(fields: [patientId], references: [id])
+
+  checkupCenterId String?
+  checkupCenter CheckupCenter? @relation(fields: [checkupCenterId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
