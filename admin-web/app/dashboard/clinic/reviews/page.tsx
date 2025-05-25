@@ -6,7 +6,7 @@ import { reviewsApi, clinicsApi } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Avatar } from '@/components/ui/avatar';
-import { Star, Loader2, MessageSquare, Calendar, User, Stethoscope, Pill } from 'lucide-react';
+import { Star, Loader2, MessageSquare, Calendar, Stethoscope, Pill } from 'lucide-react';
 
 interface Review {
   id: string;

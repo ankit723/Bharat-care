@@ -158,7 +158,7 @@ const ClinicCompoundersPage = () => {
     setError(null);
     
     try {
-      const response = await clinicsApi.assignCompounder(user.id, compounderId);
+      await clinicsApi.assignCompounder(user.id, compounderId);
       
       // Update local state with the assigned compounder
       if (selectedCompounder) {
@@ -334,7 +334,7 @@ const ClinicCompoundersPage = () => {
               <Pill className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium mb-2">No Compounder Assigned</h3>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                Your clinic doesn't have a compounder assigned yet. Search and select a compounder to work at your clinic.
+                Your clinic doesn&apos;t have a compounder assigned yet. Search and select a compounder to work at your clinic.
               </p>
               <Button onClick={openDialog}>
                 <Pill className="h-4 w-4 mr-2" />

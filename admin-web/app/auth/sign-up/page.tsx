@@ -40,7 +40,7 @@ const SignUpPage = () => {
     }
 
     try {
-      const {isAuthSuccess, user} = await signUp(formData);
+      const {isAuthSuccess} = await signUp(formData);
       if(isAuthSuccess){
         router.push('/dashboard');
       }else{

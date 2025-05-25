@@ -204,7 +204,7 @@ const DoctorPatientsPage = () => {
               </div>
               {isSubmitting && displayedPatients.length === 0 && <div className="flex justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
               {!isSubmitting && displayedPatients.length === 0 && searchTerm && (
-                <p className="text-center text-gray-500 py-4 text-sm">No patients found matching "{searchTerm}".</p>
+                <p className="text-center text-gray-500 py-4 text-sm">No patients found matching &quot;{searchTerm}&quot;.</p>
               )}
               {!isSubmitting && displayedPatients.length === 0 && !searchTerm && allPatients.length > 0 && (
                 <p className="text-center text-gray-500 py-4 text-sm">All available patients are already assigned.</p>
@@ -350,7 +350,7 @@ const DoctorPatientsPage = () => {
           <CardContent className="text-center py-10">
             <BadgeInfo className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <p className="text-gray-500 text-sm md:text-base">No patients are currently assigned to your care.</p>
-            <p className="text-gray-500 text-sm mt-1">Use the "Assign New Patient" button to add patients.</p>
+            <p className="text-gray-500 text-sm mt-1">Use the &quot;Assign New Patient&quot; button to add patients.</p>
           </CardContent>
         </Card>
       )}

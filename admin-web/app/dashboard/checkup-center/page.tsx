@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { checkupCentersApi, patientsApi, medDocumentsApi } from '@/lib/api';
+import { checkupCentersApi } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Users, FileText, Stethoscope, Building, Building2, Phone, Mail, MapPin } from 'lucide-react'; // Added icons
+import { Users, FileText, Building2, Phone, Mail, MapPin } from 'lucide-react'; // Added icons
 
 // Define interfaces for data types
 interface CheckupCenterData {
@@ -21,17 +21,6 @@ interface CheckupCenterData {
   country: string;
   patients: any[]; // Simplified for now
   medDocuments: any[]; // Simplified for now
-}
-
-interface Patient {
-  id: string;
-  name: string;
-}
-
-interface MedDocument {
-  id: string;
-  fileName: string;
-  documentType: string;
 }
 
 const CheckupCenterDashboardPage = () => {

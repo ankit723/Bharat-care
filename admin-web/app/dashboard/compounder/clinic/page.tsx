@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, Stethoscope, Phone, Mail, MapPin } from 'lucide-react';
+import { Loader2, Stethoscope, Phone, MapPin } from 'lucide-react';
 
 interface Clinic {
   id: string;
@@ -125,7 +125,7 @@ const CompounderClinicPage = () => {
       }
       
       // Filter out clinics that already have a compounder
-      const availableClinics = clinicsData.filter((clinic: Clinic) => {
+      const availableClinics = clinicsData.filter(() => {
         // In the actual implementation, check if clinic already has a compounder
         return true; // Placeholder
       });
@@ -294,7 +294,7 @@ const CompounderClinicPage = () => {
             <div className="text-center py-6">
               <Stethoscope className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground mb-4">
-                You haven't joined any clinic yet. Search and select a clinic to work with.
+                You haven&apos;t joined any clinic yet. Search and select a clinic to work with.
               </p>
               <Button onClick={openDialog}>
                 <Stethoscope className="h-4 w-4 mr-2" />

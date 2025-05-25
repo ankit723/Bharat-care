@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { medDocumentsApi, patientsApi, checkupCentersApi, doctorsApi } from '@/lib/api';
+import { medDocumentsApi, checkupCentersApi, doctorsApi } from '@/lib/api';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Loader2, Upload, FileText, Trash2, Download, Search, Eye, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Loader2, Upload, FileText, Trash2, Download, Search, ShieldCheck, ShieldOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -152,7 +152,7 @@ const CheckupCenterDocumentsPage = () => {
       const fileName = `${user.id}/${uploadForm.patientId}/${Date.now()}-${file.name}`;
       
       // Upload to Supabase
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(fileName, file, {
           cacheControl: '3600',

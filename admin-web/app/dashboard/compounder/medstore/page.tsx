@@ -117,7 +117,7 @@ const CompounderMedStorePage = () => {
       const medStoresData: MedStore[] = [];
       
       // Filter out med stores that already have a compounder
-      const availableMedStores = medStoresData.filter((store: MedStore) => {
+      const availableMedStores = medStoresData.filter(() => {
         // In the actual implementation, check if store already has a compounder
         return true; // Placeholder
       });
@@ -294,7 +294,7 @@ const CompounderMedStorePage = () => {
             <div className="text-center py-6">
               <Pill className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground mb-4">
-                You haven't joined any med store yet. Search and select a med store to work with.
+                You haven&apos;t joined any med store yet. Search and select a med store to work with.
               </p>
               <Button onClick={openDialog}>
                 <Pill className="h-4 w-4 mr-2" />

@@ -73,7 +73,7 @@ const HospitalReviewsPage = () => {
             <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <h3 className="text-lg font-semibold mb-2">No Reviews Yet</h3>
             <p>
-              You haven't received any patient reviews yet. Reviews will appear here once patients start leaving feedback about their experience at your hospital.
+              You haven&apos;t received any patient reviews yet. Reviews will appear here once patients start leaving feedback about their experience at your hospital.
             </p>
           </div>
         </CardContent>

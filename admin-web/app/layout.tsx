@@ -53,7 +53,7 @@ export const metadata: Metadata = {
     siteName: 'BharatCare',
     images: [
       {
-        url: '/og-image.png',
+        url: '/bharat-care-logo.png',
         width: 1200,
         height: 630,
         alt: 'BharatCare - Healthcare Management System',
@@ -64,7 +64,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'BharatCare - Healthcare Management System',
     description: 'A comprehensive healthcare management system connecting doctors, hospitals, patients, and medical services across India.',
-    images: ['/twitter-image.png'],
+    images: ['/bharat-care-logo.png'],
     creator: '@bharatcare',
   },
   viewport: {

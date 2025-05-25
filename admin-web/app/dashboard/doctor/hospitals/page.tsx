@@ -327,7 +327,7 @@ const HospitalsPage = () => {
           <CardContent>
             <div className="text-center py-6">
               <p className="text-muted-foreground mb-4 text-sm md:text-base">
-                You haven't been assigned to any hospital yet. Search and select a hospital to affiliate with.
+                You haven&apos;t been assigned to any hospital yet. Search and select a hospital to affiliate with.
               </p>
               <Button onClick={openDialog} className="w-full sm:w-auto">
                 Assign Hospital

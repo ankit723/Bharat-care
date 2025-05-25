@@ -160,7 +160,7 @@ const ClinicDoctorsPage = () => {
     setError(null);
     
     try {
-      const response = await clinicsApi.assignDoctor(user.id, doctorId);
+      await clinicsApi.assignDoctor(user.id, doctorId);
       
       // Update local state with the assigned doctor
       if (selectedDoctor) {
@@ -338,7 +338,7 @@ const ClinicDoctorsPage = () => {
               <Stethoscope className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium mb-2">No Doctor Assigned</h3>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                Your clinic doesn't have a doctor assigned yet. Search and select a doctor to work at your clinic.
+                Your clinic doesn&apos;t have a doctor assigned yet. Search and select a doctor to work at your clinic.
               </p>
               <Button onClick={openDialog}>
                 <Stethoscope className="h-4 w-4 mr-2" />

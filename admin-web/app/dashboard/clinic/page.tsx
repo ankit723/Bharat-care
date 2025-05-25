@@ -79,7 +79,7 @@ const ClinicDashboard = () => {
         setClinicInfo({
           id: user!.id,
           name: user!.name || 'Clinic',
-          phone: user!.phone || '',
+          phone: '',
           addressLine: '',
           city: '',
           state: '',
@@ -238,7 +238,6 @@ const ClinicDashboard = () => {
                   <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <div>
                     <div className="text-sm text-muted-foreground">Email</div>
-                    <div className="font-medium break-all">{clinicInfo.email}</div>
                   </div>
                 </div>
               </div>

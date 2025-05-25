@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 
@@ -19,14 +19,14 @@ const LoginPage = () => {
   const handleLogin = async () => {
     setIsLoading(true);
     try {
-      console.log(email, password);
-      const {isAuthSuccess, user} = await login(email, password);
+      const {isAuthSuccess} = await login(email, password);
       if(isAuthSuccess){
         router.push('/dashboard');
       }else{
         setError('Login failed');
       }
     } catch (error) {
+      console.log(error);
       setError('Login failed');
     } finally {
       setIsLoading(false);
@@ -95,7 +95,7 @@ const LoginPage = () => {
         
         <div className="text-center mt-6">
           <p className="text-sm text-gray-600">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link href="/auth/sign-up" className="font-medium text-primary hover:underline">
               Sign up
             </Link>

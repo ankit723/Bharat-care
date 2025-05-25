@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Menu, X } from 'lucide-react';
+import Image from 'next/image';
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, logout } = useAuth();
@@ -118,12 +119,12 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
           <div className={`text-lg font-semibold transition-opacity duration-300 ${
             !sidebarOpen && !isMobile ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'
           }`}>
-            BharatCare
+            <Image src="/bharat-care-text-logo.png" alt="BharatCare" width={100} height={50} />
           </div>
           <div className={`text-lg font-semibold ${
             !sidebarOpen && !isMobile ? 'block' : 'hidden'
           }`}>
-            BC
+            <Image src="/bharat-care-logo.png" alt="BharatCare" width={100} height={100} />
           </div>
           
           {/* Desktop toggle button */}

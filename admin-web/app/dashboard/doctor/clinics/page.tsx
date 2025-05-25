@@ -331,7 +331,7 @@ const DoctorClinicsPage = () => {
               <Building2 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium mb-2">No Clinic Affiliation</h3>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                You haven't joined any clinic yet. Search and select a clinic to work with.
+                You haven&apos;t joined any clinic yet. Search and select a clinic to work with.
               </p>
               <Button onClick={openDialog}>
                 <Building2 className="h-4 w-4 mr-2" />

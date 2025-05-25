@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useAuth, VerificationStatus } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, XCircle, Clock, ArrowLeft, LogOut, ArrowRight } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, LogOut, ArrowRight } from 'lucide-react';
 
 const VerificationStatusPage = () => {
   const { user, logout, isLoading } = useAuth();

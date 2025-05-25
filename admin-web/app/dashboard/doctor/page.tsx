@@ -118,7 +118,7 @@ const DoctorDashboard = () => {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold">Welcome, Dr. {user?.name}</h2>
-          <p className="text-muted-foreground">Here's an overview of your practice</p>
+          <p className="text-muted-foreground">Here&apos;s an overview of your practice</p>
         </div>
 
       </div>
@@ -260,7 +260,7 @@ const DoctorDashboard = () => {
                       </span>
                     </div>
                     {review.comment && (
-                      <p className="text-sm text-muted-foreground">"{review.comment}"</p>
+                      <p className="text-sm text-muted-foreground">&quot;{review.comment}&quot;</p>
                     )}
                   </div>
                 ))}

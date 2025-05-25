@@ -195,7 +195,7 @@ const ReviewsPage = () => {
                   
                   {review.comment ? (
                     <div className="mt-2">
-                      <p className="text-foreground">"{review.comment}"</p>
+                      <p className="text-foreground">&quot;{review.comment}&quot;</p>
                     </div>
                   ) : (
                     <div className="text-sm italic text-muted-foreground">No comment provided</div>
