@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.authorize = exports.authenticate = void 0;
+exports.authorizeAdmin = exports.authorize = exports.authenticate = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const config_1 = __importDefault(require("../config"));
 // This is a placeholder for actual authentication logic
@@ -54,3 +54,15 @@ const authorize = (roles) => {
     };
 };
 exports.authorize = authorize;
+const authorizeAdmin = (req, res, next) => {
+    if (!req.user) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+    }
+    if (req.user.role !== 'ADMIN') {
+        res.status(403).json({ error: 'Insufficient permissions' });
+        return;
+    }
+    next();
+};
+exports.authorizeAdmin = authorizeAdmin;

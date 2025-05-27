@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 
 interface PatientData {
   id: string;
@@ -40,6 +41,7 @@ const DoctorDashboard = () => {
   const [hospital, setHospital] = useState<HospitalData | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -126,10 +128,11 @@ const DoctorDashboard = () => {
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 flex justify-between items-center">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Patients
             </CardTitle>
+            <Button variant="default" size="sm" onClick={() => router.push('/dashboard/doctor/patients')}>Add Patient</Button>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{patientCount}</div>
@@ -147,46 +150,6 @@ const DoctorDashboard = () => {
             <p className="text-xs text-muted-foreground">
               From {Array.isArray(reviews) ? reviews.length : 0} reviews
             </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              My Clinic
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {clinic ? (
-              <div>
-                <div className="text-lg font-semibold">{clinic.name}</div>
-                <Link href="/dashboard/doctor/clinics" className="text-xs text-primary">
-                  View Details
-                </Link>
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">No clinic registered</div>
-            )}
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              My Hospital
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {hospital ? (
-              <div>
-                <div className="text-lg font-semibold">{hospital.name}</div>
-                <Link href="/dashboard/doctor/hospitals" className="text-xs text-primary">
-                  View Details
-                </Link>
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">No hospital affiliation</div>
-            )}
           </CardContent>
         </Card>
       </div>

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.removePatientFromDoctor = exports.assignPatientToDoctor = exports.assignDoctorToHospital = exports.deleteDoctor = exports.updateDoctor = exports.createDoctor = exports.getDoctorById = exports.getDoctors = void 0;
+exports.updatePatientNextVisit = exports.removePatientFromDoctor = exports.assignPatientToDoctor = exports.assignDoctorToHospital = exports.deleteDoctor = exports.updateDoctor = exports.createDoctor = exports.getDoctorById = exports.getDoctors = void 0;
 const db_1 = __importDefault(require("../utils/db"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 // Get all doctors
@@ -100,12 +100,13 @@ const getDoctorById = async (req, res) => {
                     },
                 },
                 patients: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                    },
+                    include: {
+                        doctorNextVisit: {
+                            where: { doctorId: id },
+                            orderBy: { nextVisit: 'desc' },
+                            take: 1,
+                        }
+                    }
                 },
                 reviews: {
                     include: {
@@ -125,8 +126,21 @@ const getDoctorById = async (req, res) => {
             return;
         }
         // Remove password from response
-        const { password, ...doctorWithoutPassword } = doctor;
-        res.json(doctorWithoutPassword);
+        const { password, ...doctorData } = doctor;
+        // Map patients to include a simplified doctorNextVisit field
+        const processedPatients = doctorData.patients.map(patient => {
+            const latestVisit = patient.doctorNextVisit && patient.doctorNextVisit.length > 0
+                ? patient.doctorNextVisit[0].nextVisit
+                : null;
+            // Create a new object for the patient without the full doctorNextVisit array
+            // and with the simplified doctorNextVisit date
+            const { doctorNextVisit, ...patientWithoutFullVisitData } = patient;
+            return {
+                ...patientWithoutFullVisitData,
+                doctorNextVisit: latestVisit, // This will be Date | null
+            };
+        });
+        res.json({ ...doctorData, patients: processedPatients });
     }
     catch (error) {
         console.error('Error fetching doctor:', error);
@@ -335,3 +349,83 @@ const removePatientFromDoctor = async (req, res) => {
     }
 };
 exports.removePatientFromDoctor = removePatientFromDoctor;
+const updatePatientNextVisit = async (req, res) => {
+    try {
+        const { doctorId, patientId } = req.params;
+        const { nextVisitDate } = req.body;
+        if (!doctorId || !patientId || !nextVisitDate) {
+            res.status(400).json({ error: 'Doctor ID, Patient ID, and next visit date are required' });
+            return;
+        }
+        const newVisitDate = new Date(nextVisitDate);
+        // First verify if the patient is assigned to this doctor
+        const doctor = await db_1.default.doctor.findFirst({
+            where: {
+                id: doctorId,
+                patients: {
+                    some: {
+                        id: patientId
+                    }
+                }
+            }
+        });
+        if (!doctor) {
+            res.status(404).json({ error: 'Doctor not found or patient not assigned to this doctor' });
+            return;
+        }
+        // Upsert the next visit:
+        // If a visit for this doctor and patient already exists, update it.
+        // Otherwise, create a new visit.
+        // This logic assumes we want to manage one "next visit" per doctor-patient pair.
+        // If multiple future visits are allowed and should be created, this logic needs adjustment.
+        // For simplicity with the current frontend, we'll find any existing visit record
+        // for this doctor and patient and update it, or create a new one.
+        // A more robust solution might involve identifying a specific visit to update if multiple exist.
+        const existingVisit = await db_1.default.doctorNextVisit.findFirst({
+            where: {
+                doctorId: doctorId,
+                patientId: patientId,
+            }
+        });
+        if (existingVisit) {
+            const updatedVisit = await db_1.default.doctorNextVisit.update({
+                where: { id: existingVisit.id },
+                data: { nextVisit: newVisitDate },
+                include: { patient: true } // Return patient data to match frontend expectations
+            });
+            // To match the previous structure where patient was returned directly,
+            // we return the patient part of the updated visit.
+            // The frontend Patient interface expects doctorNextVisit to be on the patient object itself.
+            const patientData = {
+                ...updatedVisit.patient,
+                doctorNextVisit: updatedVisit.nextVisit // Add the updated date here
+            };
+            res.json(patientData);
+        }
+        else {
+            const newVisit = await db_1.default.doctorNextVisit.create({
+                data: {
+                    doctorId: doctorId,
+                    patientId: patientId,
+                    nextVisit: newVisitDate,
+                },
+                include: { patient: true }
+            });
+            const patientData = {
+                ...newVisit.patient,
+                doctorNextVisit: newVisit.nextVisit
+            };
+            res.json(patientData);
+        }
+    }
+    catch (error) {
+        console.error('Error updating patient next visit date:', error);
+        // P2025 can occur if patientId is invalid for a new visit creation
+        if (error.code === 'P2025') {
+            res.status(404).json({ error: 'Patient not found or related record for update failed.' });
+            return;
+        }
+        res.status(500).json({ error: 'Failed to update patient next visit date' });
+    }
+};
+exports.updatePatientNextVisit = updatePatientNextVisit;

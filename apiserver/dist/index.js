@@ -8,6 +8,7 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const index_1 = require("./routes/index");
 const index_2 = __importDefault(require("./config/index"));
+const adminRoutes_1 = __importDefault(require("./routes/adminRoutes"));
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
 // Configure CORS with more specific options
@@ -20,13 +21,14 @@ app.use((req, res, next) => {
 app.use('/api/auth', index_1.authRoutes);
 app.use('/api/doctors', index_1.doctorRoutes);
 app.use('/api/clinics', index_1.clinicRoutes);
-app.use('/api/compounders', index_1.compounderRoutes);
 app.use('/api/medstores', index_1.medStoreRoutes);
 app.use('/api/patients', index_1.patientRoutes);
 app.use('/api/hospitals', index_1.hospitalRoutes);
 app.use('/api/reviews', index_1.reviewRoutes);
 app.use('/api/checkup-centers', index_1.checkupCentersRoutes);
 app.use('/api/med-documents', index_1.medDocumentRoutes);
+app.use('/api/admin', adminRoutes_1.default);
+app.use('/api/medicine-schedules', index_1.medicineScheduleRoutes);
 // Add a ping endpoint for testing connectivity
 app.get('/api/ping', (req, res) => {
     // Log request details

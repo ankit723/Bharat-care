@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { PrismaClient, Role, DocumentType } from '@prisma/client';
+import { PrismaClient, Role, DocumentType, Prisma } from '@prisma/client';
 import { hashSync } from 'bcryptjs';
 import { faker } from '@faker-js/faker/locale/en_IN'; // Using Indian locale
 
@@ -11,7 +11,6 @@ const SEED_COUNT = {
   CLINICS: 8,
   DOCTORS: 15,
   MED_STORES: 6,
-  COMPOUNDERS: 10,
   CHECKUP_CENTERS: 6,
   PATIENTS: 20,
   DOCUMENTS_PER_PATIENT: 3,
@@ -31,7 +30,7 @@ const generateAddress = () => ({
 const generateCommonFields = (role: string) => ({
   name: role === 'DOCTOR' ? `Dr. ${faker.person.fullName()}` : faker.person.fullName(),
   email: faker.internet.email().toLowerCase(),
-  password: hashSync('password123', 10),
+  password: hashSync('0000', 10),
   phone: faker.string.numeric(10),
   ...generateAddress(),
 });
@@ -43,16 +42,36 @@ async function main() {
   await prisma.$transaction([
     prisma.review.deleteMany(),
     prisma.medDocument.deleteMany(),
+    prisma.scheduledMedicineItem.deleteMany(),
+    prisma.medicineSchedule.deleteMany(),
     prisma.patient.deleteMany(),
     prisma.doctor.deleteMany(),
-    prisma.compounder.deleteMany(),
     prisma.clinic.deleteMany(),
     prisma.hospital.deleteMany(),
     prisma.medStore.deleteMany(),
     prisma.checkupCenter.deleteMany(),
+    prisma.admin.deleteMany(),
   ]);
 
   console.log('Cleared existing data');
+
+  // Create Admin
+  const adminPassword = hashSync('0000', 10);
+  const admin = await prisma.admin.create({
+    data: {
+      name: 'Super Admin',
+      email: 'admin@bharatcare.com',
+      password: adminPassword,
+      phone: faker.string.numeric(10),
+      addressLine: faker.location.streetAddress(),
+      city: faker.location.city(),
+      state: faker.location.state(),
+      pin: faker.location.zipCode(),
+      country: 'India',
+      role: 'ADMIN', // Explicitly set role, though it defaults
+    }
+  });
+  console.log(`Created admin: ${admin.name} (${admin.email})`);
 
   // Create hospitals
   const hospitals = await Promise.all(
@@ -114,27 +133,6 @@ async function main() {
     )
   );
   console.log(`Created ${medStores.length} med stores`);
-
-  // Create compounders
-  const compounders = await Promise.all(
-    Array(SEED_COUNT.COMPOUNDERS).fill(null).map(async (_, index) => {
-      // Only assign clinic and med store to compounders where index is within range
-      const clinicAssignment = index < clinics.length ? { clinicId: clinics[index].id } : {};
-      const medStoreAssignment = index < medStores.length ? { medStoreId: medStores[index].id } : {};
-      
-      return prisma.compounder.create({
-        data: {
-          ...await generateCommonFields('COMPOUNDER'),
-          ...clinicAssignment,
-          ...medStoreAssignment,
-          hospitals: {
-            connect: [{ id: hospitals[index % hospitals.length].id }],
-          },
-        },
-      });
-    })
-  );
-  console.log(`Created ${compounders.length} compounders`);
 
   // Create checkup centers
   const checkupCenters = await Promise.all(
@@ -198,11 +196,18 @@ async function main() {
               break;
           }
 
+          // Determine if seekAvailability should be true
+          // Only for prescriptions, and for roughly 1/3rd of them
+          const shouldSeekAvailability = 
+            documentType === DocumentType.PRESCRIPTION && 
+            docIndex % 3 === 0;
+
           return prisma.medDocument.create({
             data: {
               fileName: `${documentType.toLowerCase()}_${faker.string.alphanumeric(8)}.pdf`,
               fileUrl: faker.internet.url(),
               documentType,
+              seekAvailability: shouldSeekAvailability,
               patientId: patient.id,
               uploadedById: uploaderId!,
               uploaderType,
@@ -221,7 +226,78 @@ async function main() {
   );
   console.log(`Created ${patients.length} patients with their documents`);
 
-  // Create reviews for hospitals, doctors, and compounders
+  // Create Medicine Schedules
+  if (patients.length > 0 && (doctors.length > 0 || medStores.length > 0)) {
+    const schedulesToCreate: Prisma.PrismaPromise<any>[] = [];
+    const itemsToCreate: Prisma.PrismaPromise<any>[] = [];
+
+    for (let i = 0; i < SEED_COUNT.PATIENTS / 2; i++) { // Create schedules for half the patients
+      const patient = patients[i];
+      const numSchedulesForPatient = faker.number.int({ min: 1, max: 2 }); // 1-2 schedules per patient
+
+      for (let j = 0; j < numSchedulesForPatient; j++) {
+        let schedulerId: string;
+        let schedulerType: Role;
+
+        // Alternate between doctor and medstore if both exist
+        if (doctors.length > 0 && medStores.length > 0) {
+          if (j % 2 === 0) {
+            schedulerId = doctors[i % doctors.length].id;
+            schedulerType = Role.DOCTOR;
+          } else {
+            schedulerId = medStores[i % medStores.length].id;
+            schedulerType = Role.MEDSTORE;
+          }
+        } else if (doctors.length > 0) {
+          schedulerId = doctors[i % doctors.length].id;
+          schedulerType = Role.DOCTOR;
+        } else { // Only medstores exist
+          schedulerId = medStores[i % medStores.length].id;
+          schedulerType = Role.MEDSTORE;
+        }
+        
+        const startDate = faker.date.recent({ days: 30 });
+        const scheduleId = faker.string.uuid(); // Generate ID for linking
+
+        const medicineScheduleData = {
+          id: scheduleId, // Assign the generated ID
+          patientId: patient.id,
+          numberOfDays: faker.number.int({ min: 5, max: 30 }),
+          startDate: startDate,
+          notes: faker.datatype.boolean(0.3) ? faker.lorem.sentence() : undefined, // 30% chance of notes
+          schedulerId: schedulerId!,
+          schedulerType: schedulerType!,
+        };
+        schedulesToCreate.push(prisma.medicineSchedule.create({ data: medicineScheduleData }));
+
+        // Create 1 to 3 medicine items for this schedule
+        const numMedicineItems = faker.number.int({ min: 1, max: 3 });
+        for (let k = 0; k < numMedicineItems; k++) {
+          const medicineItemData = {
+            medicineScheduleId: scheduleId, // Link to the parent schedule
+            medicineName: faker.commerce.productName() + ` ${faker.helpers.arrayElement(['Tablets', 'Syrup', 'Capsules', 'Ointment'])}`,
+            dosage: `${faker.number.int({ min: 1, max: 2 })} ${faker.helpers.arrayElement(['tablet', 'capsule', 'ml', 'spoonful', 'application'])}`,
+            timesPerDay: faker.number.int({ min: 1, max: 4 }),
+            gapBetweenDays: faker.number.int({ min: 0, max: 2 }), // 0 for daily, 1 for alt days, etc.
+            notes: faker.datatype.boolean(0.2) ? faker.lorem.words(5) : undefined, // 20% chance of item-specific notes
+          };
+          itemsToCreate.push(prisma.scheduledMedicineItem.create({ data: medicineItemData }));
+        }
+      }
+    }
+    if (schedulesToCreate.length > 0) {
+      await prisma.$transaction(schedulesToCreate);
+      console.log(`Created ${schedulesToCreate.length} medicine schedules`);
+    }
+    if (itemsToCreate.length > 0) {
+      await prisma.$transaction(itemsToCreate); // Persist items after schedules
+      console.log(`Created ${itemsToCreate.length} scheduled medicine items`);
+    }
+  } else {
+    console.log('Skipping medicine schedule creation due to missing patients, doctors, or medstores.');
+  }
+
+  // Create reviews for hospitals, doctors
   const reviews = await Promise.all([
     // Hospital reviews
     ...hospitals.flatMap(hospital => 
@@ -249,14 +325,14 @@ async function main() {
         })
       )
     ),
-    // Compounder reviews
-    ...compounders.flatMap(compounder => 
+    // Checkup Center reviews
+    ...checkupCenters.flatMap(center => 
       Array(SEED_COUNT.REVIEWS_PER_ENTITY).fill(null).map(() =>
         prisma.review.create({
           data: {
             rating: faker.number.int({ min: 3, max: 5 }),
             comment: faker.lorem.paragraph(),
-            compounderId: compounder.id,
+            checkupCenterId: center.id,
             patientId: patients[faker.number.int({ min: 0, max: patients.length - 1 })].id,
           },
         })

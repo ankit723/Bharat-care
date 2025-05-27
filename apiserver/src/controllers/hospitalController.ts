@@ -21,7 +21,6 @@ export const getHospitalById = async (req: Request, res: Response): Promise<void
       where: { id },
       include: {
         doctor: true,
-        compounder: true,
         patients: true,
         reviews: true
       }
@@ -113,7 +112,6 @@ export const assignPatientToHospital = async (req: Request, res: Response): Prom
       include: {
         patients: true,
         doctor: true,
-        compounder: true,
         reviews: true
       },
     });
@@ -151,7 +149,6 @@ export const removePatientFromHospital = async (req: Request, res: Response): Pr
       include: {
         patients: true,
         doctor: true,
-        compounder: true,
         reviews: true
       },
     });

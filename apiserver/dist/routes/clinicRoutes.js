@@ -14,6 +14,4 @@ router.put('/:id', authMiddleware_1.authenticate, clinicController_1.updateClini
 router.delete('/:id', authMiddleware_1.authenticate, clinicController_1.deleteClinic);
 router.post('/:id/assign-doctor', authMiddleware_1.authenticate, clinicController_1.assignDoctorToClinic);
 router.post('/:id/remove-doctor', authMiddleware_1.authenticate, clinicController_1.removeDoctorFromClinic);
-router.post('/:id/assign-compounder', authMiddleware_1.authenticate, clinicController_1.assignCompounderToClinic);
-router.post('/:id/remove-compounder', authMiddleware_1.authenticate, clinicController_1.removeCompounderFromClinic);
 exports.default = router;

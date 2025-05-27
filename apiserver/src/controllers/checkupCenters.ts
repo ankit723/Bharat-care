@@ -55,11 +55,19 @@ export const getCheckupCenters = async (req: Request, res: Response): Promise<vo
 // Get checkup center by ID
 export const getCheckupCenterById = async (req: Request, res: Response): Promise<void> => {
   try {
-  const { id } = req.params;
+    const { id } = req.params;
     const checkupCenter = await prisma.checkupCenter.findUnique({
       where: { id },
       include: {
-        patients: true, // Include full patient details
+        patients: { // Include full patient details
+          include: { // Include the checkupCenterNextVisit relation for each patient
+            checkupCenterNextVisit: {
+              where: { checkupCenterId: id }, // Filter for visits with this center
+              orderBy: { nextVisit: 'desc' }, // Get the latest one
+              take: 1,
+            }
+          }
+        },
         medDocuments: { // Include documents uploaded by this center
             where: { uploadedById: id, uploaderType: Role.CHECKUP_CENTER },
             include: { patient: {select: {id: true, name: true}} }
@@ -71,8 +79,22 @@ export const getCheckupCenterById = async (req: Request, res: Response): Promise
       res.status(404).json({ error: 'Checkup center not found' });
       return;
     }
-    const { password, ...centerWithoutPassword } = checkupCenter;
-    res.json(centerWithoutPassword);
+    const { password, ...centerData } = checkupCenter;
+
+    // Map patients to include a simplified checkupCenterNextVisit field
+    const processedPatients = centerData.patients.map(patient => {
+      const latestVisit = patient.checkupCenterNextVisit && patient.checkupCenterNextVisit.length > 0 
+                          ? patient.checkupCenterNextVisit[0].nextVisit 
+                          : null;
+      
+      const { checkupCenterNextVisit, ...patientWithoutFullVisitData } = patient;
+      return {
+        ...patientWithoutFullVisitData,
+        checkupCenterNextVisit: latestVisit, // This will be Date | null
+      };
+    });
+
+    res.json({ ...centerData, patients: processedPatients });
   } catch (error) {
     console.error('Error fetching checkup center:', error);
     res.status(500).json({ error: 'Failed to fetch checkup center' });
@@ -231,4 +253,79 @@ export const removePatientFromCheckupCenter = async (req: Request, res: Response
         }
         res.status(500).json({ error: 'Failed to remove patient' });
     }
+};
+
+// Update patient's next visit date for a checkup center
+export const updatePatientNextVisit = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { checkupCenterId, patientId } = req.params;
+    const { nextVisitDate } = req.body;
+
+    if (!checkupCenterId || !patientId || !nextVisitDate) {
+      res.status(400).json({ error: 'Checkup Center ID, Patient ID, and next visit date are required' });
+      return;
+    }
+    
+    const newVisitDate = new Date(nextVisitDate);
+
+    // Verify if the patient is assigned to this checkup center
+    const center = await prisma.checkupCenter.findFirst({
+      where: {
+        id: checkupCenterId,
+        patients: {
+          some: {
+            id: patientId
+          }
+        }
+      }
+    });
+
+    if (!center) {
+      res.status(404).json({ error: 'Checkup center not found or patient not assigned to this center' });
+      return;
+    }
+
+    // Upsert the next visit for the checkup center
+    const existingVisit = await prisma.checkupCenterNextVisit.findFirst({
+      where: {
+        checkupCenterId: checkupCenterId,
+        patientId: patientId,
+      }
+    });
+
+    if (existingVisit) {
+      const updatedVisit = await prisma.checkupCenterNextVisit.update({
+        where: { id: existingVisit.id },
+        data: { nextVisit: newVisitDate },
+        include: { patient: true } 
+      });
+      const patientData = {
+        ...updatedVisit.patient,
+        checkupCenterNextVisit: updatedVisit.nextVisit
+      };
+      res.json(patientData);
+    } else {
+      const newVisit = await prisma.checkupCenterNextVisit.create({
+        data: {
+          checkupCenterId: checkupCenterId,
+          patientId: patientId,
+          nextVisit: newVisitDate,
+        },
+        include: { patient: true }
+      });
+      const patientData = {
+        ...newVisit.patient,
+        checkupCenterNextVisit: newVisit.nextVisit
+      };
+      res.json(patientData);
+    }
+
+  } catch (error: any) {
+    console.error('Error updating patient next visit date for checkup center:', error);
+    if (error.code === 'P2025') { // Patient not found or related record for update failed
+      res.status(404).json({ error: 'Patient not found or related record for update failed.' });
+      return;
+    }
+    res.status(500).json({ error: 'Failed to update patient next visit date' });
+  }
 };

@@ -13,7 +13,6 @@ enum Role {
   PATIENT
   HOSPITAL
   CLINIC
-  COMPOUNDER
   MEDSTORE
   CHECKUP_CENTER
   ADMIN
@@ -30,10 +29,26 @@ enum DocumentType {
   MEDICAL_REPORT
 }
 
+enum Specialization {
+  CARDIOLOGY
+  PEDIATRICS
+  GYNECOLOGY
+  ORTHOPEDICS
+  SURGERY
+  DERMATOLOGY
+  NEUROLOGY
+  ONCOLOGY
+  ENDOCRINOLOGY
+  GASTROENTEROLOGY
+  HEMATOLOGY
+  INFECTIOUS_DISEASES
+}
+
 model Doctor {
   id            String   @id @default(uuid())
   role          String   @default("doctor")
-  name          String
+  name          String 
+  specialization Specialization @default(CARDIOLOGY)
   phone         String
   addressLine   String
   city          String
@@ -49,6 +64,8 @@ model Doctor {
   hospitals      Hospital[]
 
   medDocuments MedDocument[] @relation("DoctorMedDocuments")
+
+  doctorNextVisit doctorNextVisit[]
 
   reviews Review[]
 
@@ -73,37 +90,8 @@ model Clinic {
   verificationStatus VerificationStatus @default(PENDING)
   doctor        Doctor?  @relation
 
-  compounder    Compounder?  @relation
-
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-}
-
-model Compounder {
-  id            String   @id @default(uuid())
-  role          String   @default("compounder")
-  name          String
-  email         String   @unique
-  password      String
-  phone         String
-  addressLine   String
-  city          String
-  state String
-  pin String
-  country String
-  verificationStatus VerificationStatus @default(PENDING)
-  clinicId String? @unique
-  clinic Clinic? @relation(fields: [clinicId], references: [id])
-
-  medStoreId String? @unique
-  medStore MedStore? @relation(fields: [medStoreId], references: [id])
-
-  hospitals Hospital[]
-
-  reviews Review[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model MedStore {
@@ -118,8 +106,9 @@ model MedStore {
   state String
   pin String
   country String
+  verificationStatus VerificationStatus @default(PENDING)
 
-  compounder Compounder? @relation()
+  raisedHands   MedStoreHandRaise[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -139,7 +128,6 @@ model Hospital {
   country String
   verificationStatus VerificationStatus @default(PENDING)
 
-  compounder Compounder[]
   doctor Doctor[]
 
   reviews Review[]
@@ -147,6 +135,7 @@ model Hospital {
   patients Patient[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model CheckupCenter {
@@ -161,9 +150,12 @@ model CheckupCenter {
   pin           String
   country       String
   verificationStatus VerificationStatus @default(PENDING)
+  role          String   @default("checkup_center")
 
   patients      Patient[]     @relation("CheckupCenterPatients")
   medDocuments  MedDocument[] @relation("CheckupCenterMedDocuments")
+
+  checkupCenterNextVisit checkupCenterNextVisit[]
 
   reviews Review[]
 
@@ -176,6 +168,7 @@ model MedDocument {
   fileName      String
   fileUrl       String
   documentType  DocumentType
+  seekAvailability Boolean @default(false)
 
   patientId String
   patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
@@ -197,8 +190,78 @@ model MedDocument {
   patientUploaderId String?
   patientUploader   Patient?       @relation("PatientUploadedMedDocuments", fields: [patientUploaderId], references: [id])
 
+  medStoreHandRaises MedStoreHandRaise[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model doctorNextVisit {
+  id String @id @default(uuid())
+  doctorId String
+  doctor Doctor @relation(fields: [doctorId], references: [id])
+  patientId String
+  patient Patient @relation(fields: [patientId], references: [id])
+  nextVisit DateTime
+}
+
+model checkupCenterNextVisit {
+  id String @id @default(uuid())
+  checkupCenterId String
+  checkupCenter CheckupCenter @relation(fields: [checkupCenterId], references: [id])
+  patientId String
+  patient Patient @relation(fields: [patientId], references: [id])
+  nextVisit DateTime
+}
+
+model MedStoreHandRaise {
+  id String @id @default(uuid())
+  medDocumentId String
+  medDocument MedDocument @relation(fields: [medDocumentId], references: [id], onDelete: Cascade)
+  medStoreId String
+  medStore MedStore @relation(fields: [medStoreId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  status    String   @default("ACTIVE")
+
+  @@unique([medDocumentId, medStoreId])
+}
+
+model MedicineSchedule {
+  id              String   @id @default(uuid())
+  patientId       String
+  patient         Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  schedulerId     String   // ID of the Doctor or MedStore who created this schedule
+  schedulerType   Role     // DOCTOR or MEDSTORE (using the existing Role enum)
+  
+  startDate       DateTime
+  numberOfDays    Int      // Total duration for the entire set of medicines
+  notes           String?  // Optional overall notes for the schedule
+
+  items           ScheduledMedicineItem[] // Relation to individual medicine items
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([patientId])
+  @@index([schedulerId, schedulerType])
+}
+
+model ScheduledMedicineItem {
+  id                  String    @id @default(uuid())
+  medicineScheduleId  String
+  medicineSchedule    MedicineSchedule @relation(fields: [medicineScheduleId], references: [id], onDelete: Cascade)
+
+  medicineName        String
+  dosage              String    // e.g., "1 tablet", "5ml", "1 puff"
+  timesPerDay         Int       // e.g., 1, 2, 3 for this specific medicine
+  gapBetweenDays      Int       // 0 for daily, 1 for every other day, etc., for this specific medicine
+  notes               String?   // Optional special instructions for this medicine
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([medicineScheduleId])
 }
 
 model Patient {
@@ -224,7 +287,14 @@ model Patient {
   hospitals Hospital[]
   reviews Review[]
 
+  doctorNextVisit doctorNextVisit[]
+
+  checkupCenterNextVisit checkupCenterNextVisit[]
+
+  medicineSchedules    MedicineSchedule[] // Relation to medicine schedules
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Review {
@@ -238,9 +308,6 @@ model Review {
   doctorId String?
   doctor Doctor? @relation(fields: [doctorId], references: [id])
 
-  compounderId String?
-  compounder Compounder? @relation(fields: [compounderId], references: [id])
-
   patientId String?
   patient Patient? @relation(fields: [patientId], references: [id])
 
@@ -250,3 +317,16 @@ model Review {
   createdAt DateTime @default(now())
 }
 
+model Admin {
+  id            String   @id @default(uuid())
+  role          String   @default("admin")
+  name          String
+  email         String   @unique
+  phone         String
+  addressLine   String
+  city          String
+  state String
+  pin String
+  country String
+  password      String
+}

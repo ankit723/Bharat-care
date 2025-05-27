@@ -19,4 +19,6 @@ router.delete('/:id', authMiddleware_1.authenticate, (0, authMiddleware_2.author
 // Patient assignment - typically done by an admin or the center itself
 router.post('/assign-patient', authMiddleware_1.authenticate, (0, authMiddleware_2.authorize)([client_1.Role.CHECKUP_CENTER, client_1.Role.ADMIN]), checkupCenters_1.assignPatientToCheckupCenter);
 router.post('/remove-patient', authMiddleware_1.authenticate, (0, authMiddleware_2.authorize)([client_1.Role.CHECKUP_CENTER, client_1.Role.ADMIN]), checkupCenters_1.removePatientFromCheckupCenter);
+// Route to update next visit date for a patient in a checkup center
+router.patch('/:checkupCenterId/patients/:patientId/next-visit', authMiddleware_1.authenticate, (0, authMiddleware_2.authorize)([client_1.Role.CHECKUP_CENTER, client_1.Role.ADMIN]), checkupCenters_1.updatePatientNextVisit);
 exports.default = router;

@@ -15,4 +15,5 @@ router.delete('/:id', authMiddleware_1.authenticate, doctorController_1.deleteDo
 router.post('/assign', authMiddleware_1.authenticate, doctorController_1.assignDoctorToHospital);
 router.post('/assign-patient', authMiddleware_1.authenticate, doctorController_1.assignPatientToDoctor);
 router.post('/remove-patient', authMiddleware_1.authenticate, doctorController_1.removePatientFromDoctor);
+router.patch('/:doctorId/patients/:patientId/next-visit', authMiddleware_1.authenticate, doctorController_1.updatePatientNextVisit);
 exports.default = router;

@@ -7,7 +7,8 @@ import {
   deleteDoctor,
   assignDoctorToHospital,
   assignPatientToDoctor,
-  removePatientFromDoctor
+  removePatientFromDoctor,
+  updatePatientNextVisit
 } from '../controllers/doctorController';
 import { authenticate } from '../middleware/authMiddleware';
 
@@ -21,5 +22,6 @@ router.delete('/:id', authenticate, deleteDoctor);
 router.post('/assign', authenticate, assignDoctorToHospital);
 router.post('/assign-patient', authenticate, assignPatientToDoctor);
 router.post('/remove-patient', authenticate, removePatientFromDoctor);
+router.patch('/:doctorId/patients/:patientId/next-visit', authenticate, updatePatientNextVisit);
 
 export default router; 

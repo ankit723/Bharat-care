@@ -37,7 +37,7 @@ apiClient.interceptors.response.use(
       
       // Redirect to login page if we're in the browser environment
       if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+        window.location.href = '/auth/login';
       }
     }
     
@@ -81,7 +81,10 @@ export const doctorsApi = {
     apiClient.post('/doctors/assign-patient', { doctorId, patientId }),
 
   removeFromPatient: (doctorId: string, patientId: string): Promise<AxiosResponse> => 
-    apiClient.post('/doctors/remove-patient', { doctorId, patientId })
+    apiClient.post('/doctors/remove-patient', { doctorId, patientId }),
+
+  updatePatientNextVisit: (doctorId: string, patientId: string, nextVisitDate: Date) =>
+    apiClient.patch(`/doctors/${doctorId}/patients/${patientId}/next-visit`, { nextVisitDate })
 };
 
 // Patients API
@@ -147,46 +150,7 @@ export const clinicsApi = {
     apiClient.post(`/clinics/${clinicId}/assign-doctor`, { doctorId }),
 
   removeDoctor: (clinicId: string): Promise<AxiosResponse> => 
-    apiClient.post(`/clinics/${clinicId}/remove-doctor`),
-
-  assignCompounder: (clinicId: string, compounderId: string): Promise<AxiosResponse> => 
-    apiClient.post(`/clinics/${clinicId}/assign-compounder`, { compounderId }),
-
-  removeCompounder: (clinicId: string): Promise<AxiosResponse> => 
-    apiClient.post(`/clinics/${clinicId}/remove-compounder`)
-}
-
-// Compounders API
-export const compoundersApi = {
-  getAll: (params?: any): Promise<AxiosResponse> => 
-    apiClient.get('/compounders', { params }),
-  
-  getById: (id: string): Promise<AxiosResponse> => 
-    apiClient.get(`/compounders/${id}`),
-  
-  create: (compounderData: any): Promise<AxiosResponse> => 
-    apiClient.post('/compounders', compounderData),
-  
-  update: (id: string, compounderData: any): Promise<AxiosResponse> => 
-    apiClient.put(`/compounders/${id}`, compounderData),
-  
-  delete: (id: string): Promise<AxiosResponse> => 
-    apiClient.delete(`/compounders/${id}`),
-
-  assignToHospital: (compounderId: string, hospitalId: string): Promise<AxiosResponse> => 
-    apiClient.post('/compounders/assign-hospital', { compounderId, hospitalId }),
-
-  assignToClinic: (compounderId: string, clinicId: string): Promise<AxiosResponse> => 
-    apiClient.post('/compounders/assign-clinic', { compounderId, clinicId }),
-
-  assignToMedStore: (compounderId: string, medStoreId: string): Promise<AxiosResponse> => 
-    apiClient.post('/compounders/assign-medstore', { compounderId, medStoreId }),
-
-  removeFromClinic: (compounderId: string): Promise<AxiosResponse> => 
-    apiClient.post('/compounders/remove-clinic', { compounderId }),
-
-  removeFromMedStore: (compounderId: string): Promise<AxiosResponse> => 
-    apiClient.post('/compounders/remove-medstore', { compounderId })
+    apiClient.post(`/clinics/${clinicId}/remove-doctor`)
 };
 
 // Med Stores API
@@ -204,7 +168,16 @@ export const medStoresApi = {
     apiClient.put(`/medstores/${id}`, medStoreData),
   
   delete: (id: string): Promise<AxiosResponse> => 
-    apiClient.delete(`/medstores/${id}`)
+    apiClient.delete(`/medstores/${id}`),
+
+  getAvailablePrescriptions: (page?: number, limit?: number, search?: string): Promise<AxiosResponse> => 
+    apiClient.get('/medstores/available-prescriptions', { params: { page, limit, search } }),
+
+  raiseHand: (medStoreId: string, medDocumentId: string): Promise<AxiosResponse> => 
+    apiClient.post(`/medstores/${medStoreId}/raise-hand/${medDocumentId}`),
+
+  withdrawHand: (medStoreId: string, medDocumentId: string): Promise<AxiosResponse> => 
+    apiClient.delete(`/medstores/${medStoreId}/withdraw-hand/${medDocumentId}`)
 };
 
 // Checkup Centers API
@@ -229,6 +202,15 @@ export const checkupCentersApi = {
 
   removePatient: (checkupCenterId: string, patientId: string): Promise<AxiosResponse> =>
     apiClient.post('/checkup-centers/remove-patient', { checkupCenterId, patientId }),
+
+  assignPatientToCheckupCenter: (checkupCenterId: string, patientId: string): Promise<AxiosResponse> =>
+    apiClient.post('/checkup-centers/assign-patient', { checkupCenterId, patientId }),
+
+  removePatientFromCheckupCenter: (checkupCenterId: string, patientId: string): Promise<AxiosResponse> =>
+    apiClient.post('/checkup-centers/remove-patient', { checkupCenterId, patientId }),
+
+  updatePatientNextVisit: (checkupCenterId: string, patientId: string, nextVisitDate: Date): Promise<AxiosResponse> =>
+    apiClient.patch(`/checkup-centers/${checkupCenterId}/patients/${patientId}/next-visit`, { nextVisitDate }),
 };
 
 // MedDocuments API
@@ -277,6 +259,136 @@ export const reviewsApi = {
   
   delete: (id: string): Promise<AxiosResponse> => 
     apiClient.delete(`/reviews/${id}`)
+};
+
+// Admin API for User Verification
+export interface VerifiableUser {
+  id: string; // Actual ID of the entity (Doctor, Clinic, etc.)
+  name: string;
+  email: string;
+  role: string; // User-friendly role name like 'Doctor', 'Clinic'
+  entityType: string; // Model name like 'doctor', 'clinic' for API calls
+  verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  // Add any other relevant fields you want to display, e.g., phone, address
+  phone?: string;
+  createdAt?: string; 
+}
+
+export interface PatientBasicInfo {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  city?: string;
+  state?: string;
+}
+
+export interface MedDocument {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  documentType: string; // PRESCRIPTION | MEDICAL_REPORT
+  seekAvailability: boolean;
+  patientId: string;
+  uploadedById: string;
+  uploaderType: string; // Role enum
+  permittedDoctorIds: string[];
+  permittedCheckupCenterIds: string[];
+  description?: string;
+  doctorId?: string;
+  checkupCenterId?: string;
+  patientUploaderId?: string;
+  createdAt: string; 
+  updatedAt: string;
+}
+
+export interface MedDocumentWithPatient extends MedDocument {
+  patient?: PatientBasicInfo;
+  // medStoreHandRaises?: any[]; // Define more specifically if needed later
+}
+
+export const adminApi = {
+  getPendingVerifications: (): Promise<AxiosResponse<VerifiableUser[]>> => 
+    apiClient.get('/admin/pending-verifications'),
+
+  updateVerificationStatus: (entityType: string, entityId: string, status: 'VERIFIED' | 'REJECTED'): Promise<AxiosResponse> => 
+    apiClient.patch(`/admin/verification/${entityType}/${entityId}`, { status }),
+};
+
+// Medicine Schedule Interfaces
+// NEW: Interface for individual medicine items within a schedule
+export interface ScheduledMedicineItem {
+  id: string;
+  medicineScheduleId: string;
+  medicineName: string;
+  dosage: string;
+  timesPerDay: number;
+  gapBetweenDays: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MedicineSchedule {
+  id: string;
+  patientId: string;
+  patient?: PatientBasicInfo; // Included when fetching lists created by doctor/medstore
+  // Removed single medicine fields
+  startDate: string; // ISO date string
+  numberOfDays: number;
+  notes?: string; // Overall schedule notes
+  schedulerId: string;
+  schedulerType: string; // 'DOCTOR' | 'MEDSTORE'
+  items: ScheduledMedicineItem[]; // Array of medicine items
+  createdAt: string;
+  updatedAt: string;
+}
+
+// NEW: Interface for creating/updating individual medicine items
+export interface ScheduledMedicineItemData {
+  id?: string; // Present if updating an existing item, absent for new one
+  medicineName: string;
+  dosage: string;
+  timesPerDay: number;
+  gapBetweenDays: number;
+  notes?: string;
+}
+
+export type MedicineScheduleCreateData = {
+  patientId: string;
+  startDate: string | Date; // Allow Date object for creation, will be stringified by API call
+  numberOfDays: number;
+  notes?: string;
+  items: ScheduledMedicineItemData[]; // Array of items to create
+};
+
+export type MedicineScheduleUpdateData = {
+  patientId?: string;
+  startDate?: string | Date;
+  numberOfDays?: number;
+  notes?: string;
+  items?: ScheduledMedicineItemData[]; // Array of items to create, update, or implicitly delete
+};
+
+// Medicine Schedules API
+export const medicineSchedulesApi = {
+  createSchedule: (data: MedicineScheduleCreateData): Promise<AxiosResponse<MedicineSchedule>> =>
+    apiClient.post('/medicine-schedules', data),
+
+  getSchedulesForPatient: (patientId: string): Promise<AxiosResponse<MedicineSchedule[]>> =>
+    apiClient.get(`/medicine-schedules/patient/${patientId}`),
+
+  getSchedulesByDoctor: (): Promise<AxiosResponse<MedicineSchedule[]>> => // For currently logged-in doctor
+    apiClient.get('/medicine-schedules/doctor/mine'),
+
+  getSchedulesByMedStore: (): Promise<AxiosResponse<MedicineSchedule[]>> => // For currently logged-in medstore
+    apiClient.get('/medicine-schedules/medstore/mine'),
+
+  updateSchedule: (scheduleId: string, data: MedicineScheduleUpdateData): Promise<AxiosResponse<MedicineSchedule>> =>
+    apiClient.put(`/medicine-schedules/${scheduleId}`, data),
+
+  deleteSchedule: (scheduleId: string): Promise<AxiosResponse<void>> =>
+    apiClient.delete(`/medicine-schedules/${scheduleId}`),
 };
 
 // Export the raw axios instance for custom calls

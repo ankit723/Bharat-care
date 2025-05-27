@@ -29,9 +29,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       await prisma.doctor.findUnique({ where: { email } }) ||
       await prisma.hospital.findUnique({ where: { email } }) ||
       await prisma.clinic.findUnique({ where: { email } }) ||
-      await prisma.compounder.findUnique({ where: { email } }) ||
       await prisma.medStore.findUnique({ where: { email } }) ||
       await prisma.patient.findUnique({ where: { email } }) ||
+      await prisma.admin.findUnique({ where: { email } }) ||
       await prisma.checkupCenter.findUnique({ where: { email } });
 
     if (!user) {
@@ -100,7 +100,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       await prisma.doctor.findUnique({ where: { email } }) ||
       await prisma.hospital.findUnique({ where: { email } }) ||
       await prisma.clinic.findUnique({ where: { email } }) ||
-      await prisma.compounder.findUnique({ where: { email } }) ||
       await prisma.medStore.findUnique({ where: { email } }) ||
       await prisma.patient.findUnique({ where: { email } }) ||
       await prisma.checkupCenter.findUnique({ where: { email } });
@@ -137,9 +136,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       case Role.CLINIC:
         newUser = await prisma.clinic.create({ data: { ...basicUserData, role: dbRoleToStore } });
         break;
-      case Role.COMPOUNDER:
-        newUser = await prisma.compounder.create({ data: { ...basicUserData, role: dbRoleToStore } });
-        break;
       case Role.MEDSTORE:
         newUser = await prisma.medStore.create({ data: { ...basicUserData, role: dbRoleToStore } });
         break;
@@ -149,7 +145,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       case Role.CHECKUP_CENTER:
         newUser = await prisma.checkupCenter.create({ data: { ...basicUserData } });
         break;
-      default:
+      case Role.ADMIN:
+        newUser = await prisma.admin.create({ data: { ...basicUserData } });
+        break;
+        default:
         res.status(400).json({ error: 'Invalid role' });
         return;
     }
@@ -198,60 +197,80 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
 
     let user;
     switch (userRole) {
+      case Role.ADMIN:
+        user = await prisma.admin.findUnique({ where: { id: userId } });
+        break;
       case Role.DOCTOR:
-        user = await prisma.doctor.findUnique({ where: { id: userId }, include: {
-          hospitals: true,
-          clinic: true,
-          patients: true,
-          reviews: true,
-          medDocuments: true,
-        } });
+        user = await prisma.doctor.findUnique({ 
+          where: { id: userId }, 
+          include: { 
+            clinic: true, 
+            hospitals: true, 
+            patients: true, // Basic patient list
+            reviews: { include: { patient: {select: {name: true}} } } 
+          }
+        });
         break;
       case Role.HOSPITAL:
-        user = await prisma.hospital.findUnique({ where: { id: userId }, include: {
-          doctor: true,
-          compounder: true,
-          reviews: true,
-          patients: true,
-        } });
+        user = await prisma.hospital.findUnique({ 
+          where: { id: userId }, 
+          include: { 
+            doctor: true, 
+            reviews: { include: { patient: {select: {name: true}} } }, 
+            patients: true 
+          }
+        });
         break;
       case Role.CLINIC:
-        user = await prisma.clinic.findUnique({ where: { id: userId }, include: {
-          doctor: true,
-          compounder: true,
-        } });
-        break;
-      case Role.COMPOUNDER:
-        user = await prisma.compounder.findUnique({ where: { id: userId }, include: {
-          clinic: true,
-          medStore: true,
-          hospitals: true,
-          reviews: true,
-        } });
+        user = await prisma.clinic.findUnique({ 
+          where: { id: userId }, 
+          include: { 
+            doctor: true 
+          }
+        });
         break;
       case Role.MEDSTORE:
-        user = await prisma.medStore.findUnique({ where: { id: userId }, include: {
-          compounder: true,
-        } });
+        user = await prisma.medStore.findUnique({ 
+          where: { id: userId }, 
+          include: {
+            raisedHands: {
+              include: {
+                medDocument: {
+                  include: {
+                    patient: { select: { id: true, name: true, email: true, phone: true } }
+                  }
+                }
+              }
+            }
+          }
+        });
         break;
       case Role.PATIENT:
-        user = await prisma.patient.findUnique({ where: { id: userId }, include: {
-          reviews: true,
-          doctors: true,
-          hospitals: true,
-          checkupCenters: true,
-          associatedMedDocuments: true,
-          uploadedMedDocuments: true,
-        } });
+        user = await prisma.patient.findUnique({ 
+          where: { id: userId }, 
+          include: { 
+            doctors: { select: { id: true, name: true, specialization: true } }, 
+            hospitals: { select: { id: true, name: true } }, 
+            checkupCenters: { select: { id: true, name: true } },
+            reviews: true, 
+            associatedMedDocuments: { include: { patient: true, doctor: true, checkupCenter: true }}, 
+            uploadedMedDocuments: { include: { patient: true, doctor: true, checkupCenter: true }}
+          }
+        });
         break;
       case Role.CHECKUP_CENTER:
-        user = await prisma.checkupCenter.findUnique({ where: { id: userId }, include: {
-          medDocuments: true,
-          patients: true,
-        } });
+        user = await prisma.checkupCenter.findUnique({ 
+          where: { id: userId }, 
+          include: {
+            patients: true,
+            medDocuments: { include: { patient: true } },
+            reviews: { include: { patient: {select: {name: true}} } }
+          }
+        });
         break;
       default:
-        res.status(400).json({ error: 'Invalid role specified in token' });
+        console.error(`Unhandled role in getCurrentUser: ${userRole}`);
+        res.status(500).json({ error: 'Internal server error: Unhandled user role' });
         return;
     }
 

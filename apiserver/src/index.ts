@@ -9,12 +9,13 @@ import {
   checkupCentersRoutes,
   doctorRoutes,
   clinicRoutes,
-  compounderRoutes,
   medStoreRoutes,
   reviewRoutes,
-  medDocumentRoutes
+  medDocumentRoutes,
+  medicineScheduleRoutes
 } from './routes/index'
 import config from './config/index'
+import adminRoutes from './routes/adminRoutes'
 
 const app = express()
 
@@ -32,13 +33,14 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes)
 app.use('/api/doctors', doctorRoutes)
 app.use('/api/clinics', clinicRoutes)
-app.use('/api/compounders', compounderRoutes)
 app.use('/api/medstores', medStoreRoutes)
 app.use('/api/patients', patientRoutes)
 app.use('/api/hospitals', hospitalRoutes)
 app.use('/api/reviews', reviewRoutes)
 app.use('/api/checkup-centers', checkupCentersRoutes)
 app.use('/api/med-documents', medDocumentRoutes)
+app.use('/api/admin', adminRoutes)
+app.use('/api/medicine-schedules', medicineScheduleRoutes)
 
 // Add a ping endpoint for testing connectivity
 app.get('/api/ping', (req: Request, res: Response) => {

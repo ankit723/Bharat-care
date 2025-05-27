@@ -3,10 +3,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteMedStore = exports.updateMedStore = exports.createMedStore = exports.getMedStoreById = exports.getMedStores = void 0;
-const client_1 = require("@prisma/client");
+exports.withdrawHandForPrescription = exports.raiseHandForPrescription = exports.getAvailablePrescriptions = exports.deleteMedStore = exports.updateMedStore = exports.createMedStore = exports.getMedStoreById = exports.getMedStores = void 0;
+const db_1 = __importDefault(require("../utils/db")); // Changed to shared prisma instance
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const prisma = new client_1.PrismaClient();
 // GET /api/medstores - Get all med stores
 const getMedStores = async (req, res) => {
     try {
@@ -24,25 +23,15 @@ const getMedStores = async (req, res) => {
             }
             : {};
         const [medStores, total] = await Promise.all([
-            prisma.medStore.findMany({
+            db_1.default.medStore.findMany({
                 where,
                 skip: parseInt(skip.toString()),
                 take: parseInt(limit.toString()),
-                include: {
-                    compounder: {
-                        select: {
-                            id: true,
-                            name: true,
-                            email: true,
-                            phone: true,
-                        },
-                    },
-                },
                 orderBy: {
                     createdAt: 'desc',
                 },
             }),
-            prisma.medStore.count({ where }),
+            db_1.default.medStore.count({ where }),
         ]);
         // Remove passwords from response
         const medStoresWithoutPasswords = medStores.map(({ password, ...medStore }) => medStore);
@@ -66,24 +55,21 @@ exports.getMedStores = getMedStores;
 const getMedStoreById = async (req, res) => {
     try {
         const { id } = req.params;
-        const medStore = await prisma.medStore.findUnique({
+        const medStore = await db_1.default.medStore.findUnique({
             where: { id },
             include: {
-                compounder: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                        addressLine: true,
-                        city: true,
-                        state: true,
-                        pin: true,
-                        country: true,
-                        createdAt: true,
-                    },
-                },
-            },
+                raisedHands: {
+                    include: {
+                        medDocument: {
+                            include: {
+                                patient: {
+                                    select: { id: true, name: true, email: true, phone: true }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         });
         if (!medStore) {
             res.status(404).json({ error: 'Med Store not found' });
@@ -111,7 +97,7 @@ const createMedStore = async (req, res) => {
             return;
         }
         // Check if med store with this email already exists
-        const existingMedStore = await prisma.medStore.findUnique({
+        const existingMedStore = await db_1.default.medStore.findUnique({
             where: { email },
         });
         if (existingMedStore) {
@@ -124,7 +110,7 @@ const createMedStore = async (req, res) => {
         const saltRounds = 10;
         const hashedPassword = await bcryptjs_1.default.hash(password, saltRounds);
         // Create med store
-        const medStore = await prisma.medStore.create({
+        const medStore = await db_1.default.medStore.create({
             data: {
                 name,
                 email,
@@ -135,16 +121,8 @@ const createMedStore = async (req, res) => {
                 state: state || '',
                 pin: pin || '',
                 country: country || '',
-            },
-            include: {
-                compounder: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                    },
-                },
+                verificationStatus: 'PENDING',
+                role: 'MEDSTORE'
             },
         });
         // Remove password from response
@@ -167,19 +145,9 @@ const updateMedStore = async (req, res) => {
             const saltRounds = 10;
             updateData.password = await bcryptjs_1.default.hash(updateData.password, saltRounds);
         }
-        const medStore = await prisma.medStore.update({
+        const medStore = await db_1.default.medStore.update({
             where: { id },
             data: updateData,
-            include: {
-                compounder: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                    },
-                },
-            },
         });
         // Remove password from response
         const { password, ...medStoreWithoutPassword } = medStore;
@@ -199,7 +167,7 @@ exports.updateMedStore = updateMedStore;
 const deleteMedStore = async (req, res) => {
     try {
         const { id } = req.params;
-        await prisma.medStore.delete({
+        await db_1.default.medStore.delete({
             where: { id },
         });
         res.json({ message: 'Med Store deleted successfully' });
@@ -214,3 +182,148 @@ const deleteMedStore = async (req, res) => {
     }
 };
 exports.deleteMedStore = deleteMedStore;
+// GET /api/medstores/available-prescriptions - Get all med documents with seekAvailability = true
+const getAvailablePrescriptions = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, search } = req.query;
+        const skip = (Number(page) - 1) * Number(limit);
+        const where = {
+            seekAvailability: true,
+        };
+        if (search) {
+            where.OR = [
+                { fileName: { contains: search, mode: 'insensitive' } },
+                { description: { contains: search, mode: 'insensitive' } },
+                {
+                    patient: {
+                        OR: [
+                            { name: { contains: search, mode: 'insensitive' } },
+                            { email: { contains: search, mode: 'insensitive' } },
+                        ],
+                    },
+                },
+            ];
+        }
+        const [medDocuments, total] = await Promise.all([
+            db_1.default.medDocument.findMany({
+                where,
+                skip: parseInt(skip.toString()),
+                take: parseInt(limit.toString()),
+                include: {
+                    patient: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                            phone: true,
+                            city: true,
+                            state: true,
+                        },
+                    },
+                    // Optionally, include info about which medstores have already raised hands
+                    // medStoreHandRaises: { select: { medStoreId: true } } 
+                },
+                orderBy: {
+                    createdAt: 'desc',
+                },
+            }),
+            db_1.default.medDocument.count({ where }),
+        ]);
+        res.json({
+            data: medDocuments,
+            pagination: {
+                page: parseInt(page.toString()),
+                limit: parseInt(limit.toString()),
+                total,
+                pages: Math.ceil(total / Number(limit)),
+            },
+        });
+    }
+    catch (error) {
+        console.error('Error fetching available prescriptions:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+exports.getAvailablePrescriptions = getAvailablePrescriptions;
+// POST /api/medstores/:medStoreId/raise-hand/:medDocumentId - MedStore raises hand for a prescription
+const raiseHandForPrescription = async (req, res) => {
+    try {
+        const { medStoreId, medDocumentId } = req.params;
+        // Check if MedDocument exists and has seekAvailability = true
+        const medDocument = await db_1.default.medDocument.findUnique({
+            where: { id: medDocumentId },
+        });
+        if (!medDocument) {
+            res.status(404).json({ error: 'Medical document not found' });
+            return;
+        }
+        if (!medDocument.seekAvailability) {
+            res.status(400).json({ error: 'This medical document is not seeking availability' });
+            return;
+        }
+        // Check if MedStore exists and is verified
+        const medStore = await db_1.default.medStore.findUnique({
+            where: { id: medStoreId },
+        });
+        if (!medStore) {
+            res.status(404).json({ error: 'MedStore not found' });
+            return;
+        }
+        if (medStore.verificationStatus !== 'VERIFIED') {
+            res.status(403).json({ error: 'MedStore not verified. Cannot raise hand.' });
+            return;
+        }
+        // Create MedStoreHandRaise record
+        const handRaise = await db_1.default.medStoreHandRaise.create({
+            data: {
+                medDocumentId,
+                medStoreId,
+            },
+            include: {
+                medDocument: {
+                    include: { patient: { select: { name: true, email: true } } }
+                },
+                medStore: { select: { name: true, email: true } }
+            }
+        });
+        res.status(201).json(handRaise);
+    }
+    catch (error) {
+        console.error('Error raising hand for prescription:', error);
+        if (error.code === 'P2002') { // Unique constraint violation
+            res.status(409).json({ error: 'MedStore has already raised hand for this prescription' });
+            return;
+        }
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+exports.raiseHandForPrescription = raiseHandForPrescription;
+// DELETE /api/medstores/:medStoreId/withdraw-hand/:medDocumentId - MedStore withdraws hand for a prescription
+const withdrawHandForPrescription = async (req, res) => {
+    try {
+        const { medStoreId, medDocumentId } = req.params;
+        const handRaise = await db_1.default.medStoreHandRaise.findUnique({
+            where: {
+                medDocumentId_medStoreId: {
+                    medDocumentId,
+                    medStoreId,
+                },
+            },
+        });
+        if (!handRaise) {
+            res.status(404).json({ error: 'Hand raise record not found' });
+            return;
+        }
+        await db_1.default.medStoreHandRaise.delete({
+            where: {
+                id: handRaise.id,
+            },
+        });
+        res.json({ message: 'Successfully withdrew hand for prescription' });
+    }
+    catch (error) {
+        console.error('Error withdrawing hand for prescription:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+exports.withdrawHandForPrescription = withdrawHandForPrescription;

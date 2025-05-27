@@ -9,7 +9,8 @@ export const getReviews = async (_req: Request, res: Response): Promise<void> =>
       include: {
         doctor: true,
         hospital: true,
-        compounder: true
+        patient: true,
+        checkupCenter: true
       }
     });
     res.json(reviews);
@@ -28,7 +29,8 @@ export const getReviewById = async (req: Request, res: Response): Promise<void> 
       include: {
         doctor: true,
         hospital: true,
-        compounder: true
+        patient: true,
+        checkupCenter: true
       }
     });
 

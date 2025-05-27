@@ -10,6 +10,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+// Manually define Specialization enum values for the frontend
+// Ideally, this would be auto-generated or imported if setup allows
+const specializationEnum = [
+  "CARDIOLOGY", "PEDIATRICS", "GYNECOLOGY", "ORTHOPEDICS", "SURGERY",
+  "DERMATOLOGY", "NEUROLOGY", "ONCOLOGY", "ENDOCRINOLOGY",
+  "GASTROENTEROLOGY", "HEMATOLOGY", "INFECTIOUS_DISEASES"
+];
+
 const SignUpPage = () => {
   const [formData, setFormData] = useState({
     name: '',
@@ -23,11 +31,27 @@ const SignUpPage = () => {
     password: '',
     confirmPassword: '',
     role: '',
+    specialization: '',
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { signUp } = useAuth();
   const router = useRouter();
+
+  const handleRoleChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      role: value,
+      specialization: ''
+    }));
+  };
+
+  const handleSpecializationChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      specialization: value
+    }));
+  };
 
   const handleSignUp = async () => {
     setIsLoading(true);
@@ -39,16 +63,33 @@ const SignUpPage = () => {
       return;
     }
 
+    if (formData.role === 'DOCTOR' && !formData.specialization) {
+      setError('Please select a specialization for the doctor role.');
+      setIsLoading(false);
+      return;
+    }
+
+    const { confirmPassword, ...submissionData } = formData;
+    if (submissionData.role !== 'DOCTOR') {
+      delete (submissionData as any).specialization;
+    } else if (submissionData.specialization === '') {
+      // This case should ideally be caught by the check above, but as a safeguard
+      setError('Specialization is required for doctors.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const {isAuthSuccess} = await signUp(formData);
+      const {isAuthSuccess} = await signUp(submissionData);
       if(isAuthSuccess){
         router.push('/dashboard');
       }else{
-        setError('Sign up failed');
+        setError('Sign up failed. Please check your details and try again.');
       }
     } catch (error: any) {
-      setError(error.message);
-      setIsLoading(false);
+      setError(error.message || 'An unexpected error occurred during sign up.');
+    } finally {
+        setIsLoading(false);
     }
   };
   
@@ -67,33 +108,54 @@ const SignUpPage = () => {
         
         <Card className="border-0 shadow-xl overflow-hidden">
           <CardContent className="p-8 space-y-6">
-            {error && <p className="text-red-500">{error}</p>}
-            <div className="space-y-2">
+            {error && <p className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-md">{error}</p>}
+            <div className="w-full grid grid-cols-1 md:grid-cols-2 sm:grid-cols-2 gap-6">
+              <div className="space-y-2">
               <Label htmlFor="role" className="text-sm font-medium">
                 I am a
               </Label>
-              <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
+              <Select value={formData.role} onValueChange={handleRoleChange}>
                 <SelectTrigger className="h-11">
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="DOCTOR">Doctor</SelectItem>
-                  <SelectItem value="COMPOUNDER">Compounder</SelectItem>
-                  <SelectItem value="HOSPITAL">Hospital</SelectItem>
-                  <SelectItem value="CLINIC">Clinic</SelectItem>
                   <SelectItem value="CHECKUP_CENTER">Checkup Center</SelectItem>
+                  <SelectItem value="MEDSTORE">Medicine Store</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
+            
+
+              {formData.role === 'DOCTOR' && (
+                <div className="space-y-2">
+                  <Label htmlFor="specialization" className="text-sm font-medium">
+                    Specialization <span className="text-red-500">*</span>
+                  </Label>
+                  <Select value={formData.specialization} onValueChange={handleSpecializationChange}>
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Select specialization" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {specializationEnum.map(spec => (
+                        <SelectItem key={spec} value={spec}>
+                          {spec.charAt(0).toUpperCase() + spec.slice(1).toLowerCase().replace(/_/g, ' ' )}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
             
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-sm font-medium">
-                  Full Name
+                  Full Name / Organization Name
                 </Label>
                 <Input 
                   id="name" 
-                  placeholder="John Doe" 
+                  placeholder="John Doe / City Hospital"
                   required 
                   className="h-11 ring-[oklch(0.723_0.219_149.579)] focus-visible:ring-[oklch(0.723_0.219_149.579)]"
                   value={formData.name}
@@ -117,7 +179,7 @@ const SignUpPage = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="phone" className="text-sm font-medium">
                   Phone Number
@@ -148,7 +210,7 @@ const SignUpPage = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="city" className="text-sm font-medium">
                   City
@@ -206,7 +268,7 @@ const SignUpPage = () => {
               />
             </div>
             
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-medium">
                   Password
@@ -251,8 +313,8 @@ const SignUpPage = () => {
         <div className="text-center mt-6">
           <p className="text-sm text-gray-600">
             Already have an account?{' '}
-            <Link href="/auth/login" className="font-medium text-primary hover:underline">
-              Sign in
+            <Link href="/auth/login" className="font-medium text-primary hover:text-primary/80">
+              Sign In
             </Link>
           </p>
         </div>

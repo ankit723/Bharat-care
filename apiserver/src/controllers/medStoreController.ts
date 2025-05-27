@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../utils/db'; // Changed to shared prisma instance
 import bcrypt from 'bcryptjs';
-
-const prisma = new PrismaClient();
 
 // GET /api/medstores - Get all med stores
 export const getMedStores = async (req: Request, res: Response): Promise<void> => {
@@ -27,16 +25,6 @@ export const getMedStores = async (req: Request, res: Response): Promise<void> =
         where,
         skip: parseInt(skip.toString()),
         take: parseInt(limit.toString()),
-        include: {
-          compounder: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-            },
-          },
-        },
         orderBy: {
           createdAt: 'desc',
         },
@@ -70,21 +58,18 @@ export const getMedStoreById = async (req: Request, res: Response): Promise<void
     const medStore = await prisma.medStore.findUnique({
       where: { id },
       include: {
-        compounder: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            addressLine: true,
-            city: true,
-            state: true,
-            pin: true,
-            country: true,
-            createdAt: true,
-          },
-        },
-      },
+        raisedHands: {
+          include: {
+            medDocument: {
+              include: {
+                patient: {
+                  select: { id: true, name: true, email: true, phone: true }
+                }
+              }
+            }
+          }
+        }
+      }
     });
 
     if (!medStore) {
@@ -153,16 +138,8 @@ export const createMedStore = async (req: Request, res: Response): Promise<void>
         state: state || '',
         pin: pin || '',
         country: country || '',
-      },
-      include: {
-        compounder: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
+        verificationStatus: 'PENDING',
+        role: 'MEDSTORE'
       },
     });
 
@@ -191,16 +168,6 @@ export const updateMedStore = async (req: Request, res: Response): Promise<void>
     const medStore = await prisma.medStore.update({
       where: { id },
       data: updateData,
-      include: {
-        compounder: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-      },
     });
 
     // Remove password from response
@@ -233,6 +200,164 @@ export const deleteMedStore = async (req: Request, res: Response): Promise<void>
       res.status(404).json({ error: 'Med Store not found' });
       return;
     }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// GET /api/medstores/available-prescriptions - Get all med documents with seekAvailability = true
+export const getAvailablePrescriptions = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { page = 1, limit = 10, search } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const where: any = {
+      seekAvailability: true,
+    };
+
+    if (search) {
+      where.OR = [
+        { fileName: { contains: search as string, mode: 'insensitive' as const } },
+        { description: { contains: search as string, mode: 'insensitive' as const } },
+        {
+          patient: {
+            OR: [
+              { name: { contains: search as string, mode: 'insensitive' as const } },
+              { email: { contains: search as string, mode: 'insensitive' as const } },
+            ],
+          },
+        },
+      ];
+    }
+
+    const [medDocuments, total] = await Promise.all([
+      prisma.medDocument.findMany({
+        where,
+        skip: parseInt(skip.toString()),
+        take: parseInt(limit.toString()),
+        include: {
+          patient: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              city: true,
+              state: true,
+            },
+          },
+          // Optionally, include info about which medstores have already raised hands
+          // medStoreHandRaises: { select: { medStoreId: true } } 
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      prisma.medDocument.count({ where }),
+    ]);
+
+    res.json({
+      data: medDocuments,
+      pagination: {
+        page: parseInt(page.toString()),
+        limit: parseInt(limit.toString()),
+        total,
+        pages: Math.ceil(total / Number(limit)),
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching available prescriptions:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// POST /api/medstores/:medStoreId/raise-hand/:medDocumentId - MedStore raises hand for a prescription
+export const raiseHandForPrescription = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { medStoreId, medDocumentId } = req.params;
+
+    // Check if MedDocument exists and has seekAvailability = true
+    const medDocument = await prisma.medDocument.findUnique({
+      where: { id: medDocumentId },
+    });
+
+    if (!medDocument) {
+      res.status(404).json({ error: 'Medical document not found' });
+      return;
+    }
+
+    if (!medDocument.seekAvailability) {
+      res.status(400).json({ error: 'This medical document is not seeking availability' });
+      return;
+    }
+
+    // Check if MedStore exists and is verified
+    const medStore = await prisma.medStore.findUnique({
+      where: { id: medStoreId },
+    });
+
+    if (!medStore) {
+      res.status(404).json({ error: 'MedStore not found' });
+      return;
+    }
+
+    if (medStore.verificationStatus !== 'VERIFIED') {
+      res.status(403).json({ error: 'MedStore not verified. Cannot raise hand.' });
+      return;
+    }
+
+    // Create MedStoreHandRaise record
+    const handRaise = await prisma.medStoreHandRaise.create({
+      data: {
+        medDocumentId,
+        medStoreId,
+      },
+      include: {
+        medDocument: {
+          include: { patient: {select: { name: true, email: true}} }
+        },
+        medStore: {select: {name: true, email: true}}
+      }
+    });
+
+    res.status(201).json(handRaise);
+  } catch (error: any) {
+    console.error('Error raising hand for prescription:', error);
+    if (error.code === 'P2002') { // Unique constraint violation
+      res.status(409).json({ error: 'MedStore has already raised hand for this prescription' });
+      return;
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// DELETE /api/medstores/:medStoreId/withdraw-hand/:medDocumentId - MedStore withdraws hand for a prescription
+export const withdrawHandForPrescription = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { medStoreId, medDocumentId } = req.params;
+
+    const handRaise = await prisma.medStoreHandRaise.findUnique({
+      where: {
+        medDocumentId_medStoreId: {
+          medDocumentId,
+          medStoreId,
+        },
+      },
+    });
+
+    if (!handRaise) {
+      res.status(404).json({ error: 'Hand raise record not found' });
+      return;
+    }
+
+    await prisma.medStoreHandRaise.delete({
+      where: {
+        id: handRaise.id,
+      },
+    });
+
+    res.json({ message: 'Successfully withdrew hand for prescription' });
+  } catch (error) {
+    console.error('Error withdrawing hand for prescription:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }; 

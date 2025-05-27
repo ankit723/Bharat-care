@@ -11,7 +11,7 @@ const DashboardPage = () => {
     if (!user || isLoading) return;
     
     // If user is not verified, let the middleware handle the redirect
-    if (user.verificationStatus !== 'VERIFIED') {
+    if (user.verificationStatus !== 'VERIFIED' && user.role !== 'ADMIN') {
       return router.push('/auth/verification-status');
     }
     
@@ -23,11 +23,8 @@ const DashboardPage = () => {
     case 'HOSPITAL':
         router.push('/dashboard/hospital');
         break;
-    case 'COMPOUNDER':
-        router.push('/dashboard/compounder');
-        break;
     case 'MEDSTORE':
-        router.push('/dashboard/medStore');
+        router.push('/dashboard/medstore');
         break;
     case 'CLINIC':
         router.push('/dashboard/clinic');
@@ -37,6 +34,9 @@ const DashboardPage = () => {
         break;
     case 'CHECKUP_CENTER':
         router.push('/dashboard/checkup-center');
+        break;
+    case 'ADMIN':
+        router.push('/admin');
         break;
     }
   }, [user, router, isLoading]);

@@ -16,8 +16,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Loader2, Search, UserPlus, XCircle, BadgeInfo } from 'lucide-react';
+import { Loader2, Search, UserPlus, XCircle, BadgeInfo, Calendar as CalendarIcon, ChevronUp, ChevronDown, Info } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 interface Patient {
   id: string;
@@ -29,27 +33,46 @@ interface Patient {
   state: string;
   pin?: string;
   country?: string;
+  doctorNextVisit?: Date | null;
 }
+
+type SortField = 'name' | 'email' | 'city' | 'doctorNextVisit';
+type SortOrder = 'asc' | 'desc';
 
 const DoctorPatientsPage = () => {
   const { user } = useAuth();
   const [assignedPatients, setAssignedPatients] = useState<Patient[]>([]);
-  const [allPatients, setAllPatients] = useState<Patient[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [displayedPatients, setDisplayedPatients] = useState<Patient[]>([]);
+  const [allUnassignedPatients, setAllUnassignedPatients] = useState<Patient[]>([]);
+  
+  // State for the main page patient list
+  const [mainSearchTerm, setMainSearchTerm] = useState('');
+  const [displayedAssignedPatients, setDisplayedAssignedPatients] = useState<Patient[]>([]);
+  
+  // State for the Assign New Patient modal
+  const [modalSearchTerm, setModalSearchTerm] = useState('');
+  const [modalDisplayedUnassignedPatients, setModalDisplayedUnassignedPatients] = useState<Patient[]>([]);
   const [selectedPatientForModal, setSelectedPatientForModal] = useState<Patient | null>(null);
+  
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  
+  // State for Patient Details Modal
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedPatientForDetails, setSelectedPatientForDetails] = useState<Patient | null>(null);
+  const [selectedDateForVisit, setSelectedDateForVisit] = useState<Date | undefined>(undefined);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   const fetchDoctorData = useCallback(async () => {
     if (!user || user.role !== 'DOCTOR') return;
     setIsLoading(true);
     try {
-      // Get doctor data with assigned patients
       const response = await doctorsApi.getById(user.id);
-      setAssignedPatients(response.data.patients || []);
+      const fetchedPatients = response.data.patients || [];
+      setAssignedPatients(fetchedPatients);
     } catch (err: any) {
       console.error('Error fetching doctor data:', err);
       setError(err.response?.data?.message || 'Failed to load patient data.');
@@ -64,17 +87,11 @@ const DoctorPatientsPage = () => {
   }, [fetchDoctorData]);
 
   const fetchAllPatientsForModal = async () => {
-    if (allPatients.length > 0 && !searchTerm) {
-      setDisplayedPatients(allPatients.filter(p => !assignedPatients.find(ap => ap.id === p.id)));
-      return;
-    }
     setIsSubmitting(true);
     try {
-      const response = await patientsApi.getAll({ limit: 100 });
+      const response = await patientsApi.getAll({ limit: 200 });
       
       let patientsData = [];
-      
-      // Handle different possible API response formats
       if (response.data && Array.isArray(response.data)) {
         patientsData = response.data;
       } else if (response.data && Array.isArray(response.data.patients)) {
@@ -82,20 +99,21 @@ const DoctorPatientsPage = () => {
       } else if (response.data && Array.isArray(response.data.data)) {
         patientsData = response.data.data;
       } else {
-        console.error('Unexpected API response format:', response.data);
+        console.error('Unexpected API response format for all patients:', response.data);
         patientsData = [];
       }
       
-      const availablePatients = patientsData.filter((p: Patient) => 
-        !assignedPatients.find(ap => ap.id === p.id)
-      );
-      setAllPatients(availablePatients);
-      setDisplayedPatients(availablePatients);
-      if (availablePatients.length === 0) {
-        toast.info("No new patients available to assign or all patients are already assigned.")
+      const assignedPatientIds = new Set(assignedPatients.map(ap => ap.id));
+      const availablePatients = patientsData.filter((p: Patient) => !assignedPatientIds.has(p.id));
+      
+      setAllUnassignedPatients(availablePatients);
+      setModalDisplayedUnassignedPatients(availablePatients);
+      
+      if (availablePatients.length === 0 && !modalSearchTerm) {
+        toast.info("No new patients available to assign.");
       }
     } catch (err: any) {
-      console.error('Error fetching all patients:', err);
+      console.error('Error fetching all patients for modal:', err);
       toast.error(err.response?.data?.message || 'Failed to load patients for assignment.');
     } finally {
       setIsSubmitting(false);
@@ -103,22 +121,77 @@ const DoctorPatientsPage = () => {
   };
 
   useEffect(() => {
-    if (isModalOpen) {
+    if (isAssignModalOpen) {
+      setModalSearchTerm('');
+      setSelectedPatientForModal(null);
       fetchAllPatientsForModal();
+    } else {
+      setModalSearchTerm('');
+      setAllUnassignedPatients([]);
+      setModalDisplayedUnassignedPatients([]);
+      setSelectedPatientForModal(null);
     }
-  }, [isModalOpen]);
+  }, [isAssignModalOpen]);
 
   useEffect(() => {
-    const filtered = searchTerm.trim() === ''
-      ? allPatients.filter(p => !assignedPatients.find(ap => ap.id === p.id))
-      : allPatients.filter(
+    if (isAssignModalOpen) {
+      const filtered = modalSearchTerm.trim() === ''
+        ? allUnassignedPatients
+        : allUnassignedPatients.filter(
           (patient) =>
-            (patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            patient.email.toLowerCase().includes(searchTerm.toLowerCase())) &&
-            !assignedPatients.find(ap => ap.id === patient.id)
-        );
-    setDisplayedPatients(filtered);
-  }, [searchTerm, allPatients, assignedPatients]);
+              patient.name.toLowerCase().includes(modalSearchTerm.toLowerCase()) ||
+              patient.email.toLowerCase().includes(modalSearchTerm.toLowerCase())
+          );
+      setModalDisplayedUnassignedPatients(filtered);
+    }
+  }, [modalSearchTerm, allUnassignedPatients, isAssignModalOpen]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return null;
+    return sortOrder === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />;
+  };
+
+  useEffect(() => {
+    const filterMainPatients = (patients: Patient[]) => {
+      return patients.filter(patient => 
+        patient.name.toLowerCase().includes(mainSearchTerm.toLowerCase()) ||
+        patient.email.toLowerCase().includes(mainSearchTerm.toLowerCase()) ||
+        patient.phone.toLowerCase().includes(mainSearchTerm.toLowerCase()) ||
+        patient.city?.toLowerCase().includes(mainSearchTerm.toLowerCase()) ||
+        patient.state?.toLowerCase().includes(mainSearchTerm.toLowerCase())
+      );
+    };
+
+    const sortMainPatients = (patients: Patient[]) => {
+      return [...patients].sort((a, b) => {
+        let compareResult = 0;
+        switch (sortField) {
+          case 'name': compareResult = a.name.localeCompare(b.name); break;
+          case 'email': compareResult = a.email.localeCompare(b.email); break;
+          case 'city': compareResult = (a.city || '').localeCompare(b.city || ''); break;
+          case 'doctorNextVisit':
+            const dateA = a.doctorNextVisit ? new Date(a.doctorNextVisit).getTime() : (sortOrder === 'asc' ? Infinity : -Infinity);
+            const dateB = b.doctorNextVisit ? new Date(b.doctorNextVisit).getTime() : (sortOrder === 'asc' ? Infinity : -Infinity);
+            compareResult = dateA - dateB;
+            break;
+        }
+        return sortOrder === 'asc' ? compareResult : -compareResult;
+      });
+    };
+
+    const filtered = filterMainPatients(assignedPatients);
+    const sorted = sortMainPatients(filtered);
+    setDisplayedAssignedPatients(sorted);
+  }, [mainSearchTerm, assignedPatients, sortField, sortOrder]);
 
   const handleAssignPatient = async () => {
     if (!user || !selectedPatientForModal) return;
@@ -126,9 +199,7 @@ const DoctorPatientsPage = () => {
     try {
       await doctorsApi.assignToPatient(user.id, selectedPatientForModal.id);
       toast.success(`${selectedPatientForModal.name} has been assigned successfully.`);
-      setIsModalOpen(false);
-      setSelectedPatientForModal(null);
-      setSearchTerm('');
+      setIsAssignModalOpen(false);
       fetchDoctorData();
     } catch (err: any) {
       console.error('Error assigning patient:', err);
@@ -159,9 +230,30 @@ const DoctorPatientsPage = () => {
   };
 
   const openAssignModal = () => {
-    setSearchTerm('');
-    setSelectedPatientForModal(null);
-    setIsModalOpen(true);
+    setIsAssignModalOpen(true);
+  };
+
+  const handleViewDetails = (patient: Patient) => {
+    setSelectedPatientForDetails(patient);
+    setSelectedDateForVisit(patient.doctorNextVisit ? new Date(patient.doctorNextVisit) : undefined);
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleUpdateNextVisit = async () => {
+    if (!user || !selectedPatientForDetails || !selectedDateForVisit) return;
+    setIsSubmitting(true);
+    try {
+      await doctorsApi.updatePatientNextVisit(user.id, selectedPatientForDetails.id, selectedDateForVisit);
+      toast.success('Next visit date updated successfully');
+      setIsDetailsModalOpen(false);
+      setSelectedDateForVisit(undefined);
+      fetchDoctorData();
+    } catch (err: any) {
+      console.error('Error updating next visit date:', err);
+      toast.error(err.response?.data?.message || 'Failed to update next visit date');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isLoading && !assignedPatients.length) {
@@ -179,7 +271,7 @@ const DoctorPatientsPage = () => {
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800">My Patients</h1>
           <p className="text-sm md:text-lg text-gray-500 mt-1">View and manage patients assigned to you.</p>
         </div>
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
           <DialogTrigger asChild>
             <Button onClick={openAssignModal} className="bg-blue-600 hover:bg-blue-700 w-full md:w-auto">
               <UserPlus className="mr-2 h-5 w-5" /> 
@@ -197,25 +289,22 @@ const DoctorPatientsPage = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input 
                   placeholder="Search patients by name or email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={modalSearchTerm}
+                  onChange={(e) => setModalSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
-              {isSubmitting && displayedPatients.length === 0 && <div className="flex justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
-              {!isSubmitting && displayedPatients.length === 0 && searchTerm && (
-                <p className="text-center text-gray-500 py-4 text-sm">No patients found matching &quot;{searchTerm}&quot;.</p>
+              {isSubmitting && modalDisplayedUnassignedPatients.length === 0 && <div className="flex justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
+              {!isSubmitting && modalDisplayedUnassignedPatients.length === 0 && modalSearchTerm && (
+                <p className="text-center text-gray-500 py-4 text-sm">No patients found matching &quot;{modalSearchTerm}&quot;.</p>
               )}
-              {!isSubmitting && displayedPatients.length === 0 && !searchTerm && allPatients.length > 0 && (
-                <p className="text-center text-gray-500 py-4 text-sm">All available patients are already assigned.</p>
-              )}
-              {!isSubmitting && allPatients.length === 0 && !searchTerm && (
+              {!isSubmitting && modalDisplayedUnassignedPatients.length === 0 && !modalSearchTerm && allUnassignedPatients.length === 0 && (
                 <p className="text-center text-gray-500 py-4 text-sm">No patients available in the system to assign.</p>
               )}
 
-              {displayedPatients.length > 0 && (
+              {modalDisplayedUnassignedPatients.length > 0 && (
                 <div className="border rounded-md divide-y max-h-[250px] md:max-h-[300px] overflow-y-auto">
-                  {displayedPatients.map((patient) => (
+                  {modalDisplayedUnassignedPatients.map((patient) => (
                     <div
                       key={patient.id}
                       className={`p-3 cursor-pointer hover:bg-gray-50 transition-colors ${
@@ -244,7 +333,7 @@ const DoctorPatientsPage = () => {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => setIsAssignModalOpen(false)}
                 disabled={isSubmitting}
                 className="w-full sm:w-auto"
               >
@@ -266,13 +355,109 @@ const DoctorPatientsPage = () => {
       {assignedPatients.length > 0 ? (
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="text-lg md:text-xl text-gray-700">Assigned Patients ({assignedPatients.length})</CardTitle>
-            <CardDescription className="text-sm text-gray-500">Patients currently under your care.</CardDescription>
+            <CardTitle className="text-lg md:text-xl text-gray-700">
+              Assigned Patients ({assignedPatients.length})
+            </CardTitle>
+            <CardDescription className="text-sm text-gray-500">
+              Patients currently under your care.
+            </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Input 
+                  placeholder="Search your patients by name, email, phone, or location..."
+                  value={mainSearchTerm}
+                  onChange={(e) => setMainSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+                    </div>
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center">
+                        Name {getSortIcon('name')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSort('email')}
+                    >
+                      <div className="flex items-center">
+                        Email {getSortIcon('email')}
+                      </div>
+                    </TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSort('city')}
+                    >
+                      <div className="flex items-center">
+                        Location {getSortIcon('city')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSort('doctorNextVisit')}
+                    >
+                      <div className="flex items-center">
+                        Next Visit {getSortIcon('doctorNextVisit')}
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {displayedAssignedPatients.map((patient) => (
+                    <TableRow key={patient.id}>
+                      <TableCell className="font-medium text-gray-800">{patient.name}</TableCell>
+                      <TableCell className="text-gray-600 break-all">{patient.email}</TableCell>
+                      <TableCell className="text-gray-600">{patient.phone}</TableCell>
+                      <TableCell className="text-gray-600">
+                        {patient.city && patient.state ? `${patient.city}, ${patient.state}` : patient.city || patient.state || 'N/A'}
+                      </TableCell>
+                      <TableCell className="text-gray-600">
+                        {patient.doctorNextVisit ? format(new Date(patient.doctorNextVisit), 'PPP') : 'Not scheduled'}
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1.5 h-auto"
+                          onClick={() => handleViewDetails(patient)}
+                          title="View Details & Schedule Visit"
+                        >
+                          <Info className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 h-auto"
+                          onClick={() => handleRemovePatient(patient.id)}
+                          disabled={isSubmitting}
+                          title="Remove Patient"
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
             {/* Mobile Cards View */}
             <div className="block md:hidden space-y-4">
-              {assignedPatients.map((patient) => (
+              {displayedAssignedPatients.map((patient) => (
                 <Card key={patient.id} className="border">
                   <CardContent className="p-4">
                     <div className="space-y-3">
@@ -282,63 +467,40 @@ const DoctorPatientsPage = () => {
                           <div className="text-sm text-gray-600 break-all">{patient.email}</div>
                           <div className="text-sm text-gray-600">{patient.phone}</div>
                           {(patient.city || patient.state) && (
-                            <div className="text-sm text-gray-500">{patient.city && patient.state ? `${patient.city}, ${patient.state}` : patient.city || patient.state}</div>
+                            <div className="text-sm text-gray-500">
+                              {patient.city && patient.state ? `${patient.city}, ${patient.state}` : patient.city || patient.state}
+                            </div>
                           )}
+                          <div className="text-sm text-gray-500 mt-2">
+                            Next Visit: {patient.doctorNextVisit ? format(new Date(patient.doctorNextVisit), 'PPP') : 'Not scheduled'}
+                          </div>
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
-                          onClick={() => handleRemovePatient(patient.id)}
-                          disabled={isSubmitting}
-                          title="Remove Patient"
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </Button>
+                        <div className="flex flex-col space-y-2 items-end">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1.5 h-auto"
+                            onClick={() => handleViewDetails(patient)}
+                            title="View Details & Schedule Visit"
+                          >
+                            <Info className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 h-auto"
+                            onClick={() => handleRemovePatient(patient.id)}
+                            disabled={isSubmitting}
+                            title="Remove Patient"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               ))}
-            </div>
-
-            {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {assignedPatients.map((patient) => (
-                    <TableRow key={patient.id}>
-                      <TableCell className="font-medium text-gray-800">{patient.name}</TableCell>
-                      <TableCell className="text-gray-600 break-all">{patient.email}</TableCell>
-                      <TableCell className="text-gray-600">{patient.phone}</TableCell>
-                      <TableCell className="text-gray-600">
-                        {patient.city && patient.state ? `${patient.city}, ${patient.state}` : patient.city || patient.state || 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleRemovePatient(patient.id)}
-                          disabled={isSubmitting}
-                          title="Remove Patient from Care"
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
             </div>
           </CardContent>
         </Card>
@@ -354,6 +516,140 @@ const DoctorPatientsPage = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Patient Details Modal */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Patient Details</DialogTitle>
+          </DialogHeader>
+          {selectedPatientForDetails && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Name</label>
+                  <p className="text-gray-900">{selectedPatientForDetails.name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Email</label>
+                  <p className="text-gray-900 break-all">{selectedPatientForDetails.email}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Phone</label>
+                  <p className="text-gray-900">{selectedPatientForDetails.phone}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Address</label>
+                  <p className="text-gray-900">{selectedPatientForDetails.addressLine}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">City</label>
+                  <p className="text-gray-900">{selectedPatientForDetails.city}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">State</label>
+                  <p className="text-gray-900">{selectedPatientForDetails.state}</p>
+                </div>
+                {selectedPatientForDetails.pin && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">PIN</label>
+                    <p className="text-gray-900">{selectedPatientForDetails.pin}</p>
+                  </div>
+                )}
+                {selectedPatientForDetails.country && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Country</label>
+                    <p className="text-gray-900">{selectedPatientForDetails.country}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t pt-4 mt-4">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Current Next Visit Date</label>
+                    <div className="mt-1 p-3 bg-gray-50 rounded-md">
+                      {selectedPatientForDetails.doctorNextVisit ? (
+                        <div className="flex items-center space-x-2">
+                          <CalendarIcon className="h-4 w-4 text-gray-500" />
+                          <span className="text-gray-900">
+                            {format(new Date(selectedPatientForDetails.doctorNextVisit), 'PPP')}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-500 italic">No visit scheduled</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-500">
+                      {selectedPatientForDetails.doctorNextVisit ? 'Update Next Visit Date' : 'Schedule Next Visit'}
+                    </label>
+                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !selectedDateForVisit && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {selectedDateForVisit ? format(selectedDateForVisit, 'PPP') : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={selectedDateForVisit}
+                          onSelect={(date) => {
+                            setSelectedDateForVisit(date);
+                            setIsDatePickerOpen(false);
+                          }}
+                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {selectedDateForVisit && selectedPatientForDetails.doctorNextVisit && (
+                      <p className="text-sm text-muted-foreground">
+                        This will update the current scheduled visit date.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsDetailsModalOpen(false);
+                setSelectedDateForVisit(undefined);
+              }}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleUpdateNextVisit}
+              disabled={isSubmitting || 
+                !selectedDateForVisit || 
+                (!!selectedPatientForDetails?.doctorNextVisit && selectedDateForVisit?.getTime() === new Date(selectedPatientForDetails.doctorNextVisit).getTime())}
+              className={cn(
+                "w-full sm:w-auto",
+                selectedPatientForDetails?.doctorNextVisit ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"
+              )}
+            >
+              {isSubmitting ? 'Updating...' : selectedPatientForDetails?.doctorNextVisit ? 'Update Visit Date' : 'Schedule Visit'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

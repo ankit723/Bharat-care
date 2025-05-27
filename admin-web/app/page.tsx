@@ -1,9 +1,13 @@
+'use client';
 import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import useAuth from '@/hooks/useAuth';
 
 const HomePage = () => {
+  const { user, isLoading } = useAuth();
+  console.log(user, isLoading);
   return (
     <div className="min-h-screen flex flex-col">
       {/* Hero Section */}
@@ -16,7 +20,9 @@ const HomePage = () => {
             <p className="text-xl text-muted-foreground mb-8">
               A comprehensive platform connecting doctors, hospitals, clinics, and patients for better healthcare management across India.
             </p>
-            <div className="flex flex-wrap gap-4">
+            {isLoading || !user ?(
+
+              <div className="flex flex-wrap gap-4">
               <Link href="/auth/login">
                 <Button size="lg" className="bg-primary hover:bg-primary/90">
                   Login to Dashboard
@@ -28,13 +34,22 @@ const HomePage = () => {
                 </Button>
               </Link>
             </div>
+            ):(
+              <div className="flex flex-wrap gap-4">
+                <Link href="/dashboard">
+                  <Button size="lg" className="bg-primary hover:bg-primary/90">
+                    Go to Dashboard
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Features Section */}
       <div className="container mx-auto px-4 py-16">
-        <h2 className="text-3xl font-bold text-center mb-12">How BharatCare Works</h2>
+        <h2 className="text-3xl font-bold text-center mb-12">How BharatCare Admin Works</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <Card>

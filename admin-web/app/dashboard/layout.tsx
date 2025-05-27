@@ -45,8 +45,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
         return [
           { href: '/dashboard/doctor', label: 'Overview' },
           { href: '/dashboard/doctor/patients', label: 'Patients' },
-          { href: '/dashboard/doctor/clinics', label: 'My Clinic' },
-          { href: '/dashboard/doctor/hospitals', label: 'My Hospitals' },
+          { href: '/dashboard/doctor/medicine-scheduler', label: 'Medicine Scheduler' },
           { href: '/dashboard/doctor/reviews', label: 'Reviews' },
           { href: '/dashboard/doctor/documents', label: 'Documents' },
         ];
@@ -61,16 +60,14 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
         return [
           { href: '/dashboard/clinic', label: 'Overview' },
           { href: '/dashboard/clinic/doctors', label: 'Doctor' },
-          { href: '/dashboard/clinic/compounders', label: 'Compounder' },
           { href: '/dashboard/clinic/reviews', label: 'Reviews' },
         ];
-      case 'COMPOUNDER':
+      case 'MEDSTORE':
         return [
-          { href: '/dashboard/compounder', label: 'Overview' },
-          { href: '/dashboard/compounder/clinic', label: 'Clinic' },
-          { href: '/dashboard/compounder/hospitals', label: 'Hospitals' },
-          { href: '/dashboard/compounder/medstore', label: 'Medical Store' },
-          { href: '/dashboard/compounder/reviews', label: 'Reviews' },
+          { href: '/dashboard/medstore', label: 'Overview' },
+          { href: '/dashboard/medstore/available-prescriptions', label: 'Available Prescriptions' },
+          { href: '/dashboard/medstore/medicine-scheduler', label: 'Medicine Scheduler' },
+          { href: '/dashboard/medstore/reviews', label: 'Reviews' },
         ];
       case 'CHECKUP_CENTER':
         return [

@@ -5,9 +5,10 @@ import reviewRoutes from './reviewRoutes';
 import authRoutes from './authRoutes';
 import checkupCentersRoutes from './checkupCentersRoutes';
 import clinicRoutes from './clinicRoutes';
-import compounderRoutes from './compounderRoutes';
 import medStoreRoutes from './medStoreRoutes';
 import medDocumentRoutes from './medDocumentRoutes';
+import adminRoutes from './adminRoutes';
+import medicineScheduleRoutes from './medicineScheduleRoutes';
 
 export {
   authRoutes,
@@ -17,7 +18,8 @@ export {
   reviewRoutes,
   checkupCentersRoutes,
   clinicRoutes,
-  compounderRoutes,
   medStoreRoutes,
-  medDocumentRoutes
+  medDocumentRoutes,
+  adminRoutes,
+  medicineScheduleRoutes
 }; 

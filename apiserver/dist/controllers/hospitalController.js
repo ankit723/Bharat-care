@@ -25,7 +25,6 @@ const getHospitalById = async (req, res) => {
             where: { id },
             include: {
                 doctor: true,
-                compounder: true,
                 patients: true,
                 reviews: true
             }
@@ -109,7 +108,6 @@ const assignPatientToHospital = async (req, res) => {
             include: {
                 patients: true,
                 doctor: true,
-                compounder: true,
                 reviews: true
             },
         });
@@ -145,7 +143,6 @@ const removePatientFromHospital = async (req, res) => {
             include: {
                 patients: true,
                 doctor: true,
-                compounder: true,
                 reviews: true
             },
         });

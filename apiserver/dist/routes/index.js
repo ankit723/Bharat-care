@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.medDocumentRoutes = exports.medStoreRoutes = exports.compounderRoutes = exports.clinicRoutes = exports.checkupCentersRoutes = exports.reviewRoutes = exports.hospitalRoutes = exports.patientRoutes = exports.doctorRoutes = exports.authRoutes = void 0;
+exports.medicineScheduleRoutes = exports.adminRoutes = exports.medDocumentRoutes = exports.medStoreRoutes = exports.clinicRoutes = exports.checkupCentersRoutes = exports.reviewRoutes = exports.hospitalRoutes = exports.patientRoutes = exports.doctorRoutes = exports.authRoutes = void 0;
 const doctorRoutes_1 = __importDefault(require("./doctorRoutes"));
 exports.doctorRoutes = doctorRoutes_1.default;
 const patientRoutes_1 = __importDefault(require("./patientRoutes"));
@@ -18,9 +18,11 @@ const checkupCentersRoutes_1 = __importDefault(require("./checkupCentersRoutes")
 exports.checkupCentersRoutes = checkupCentersRoutes_1.default;
 const clinicRoutes_1 = __importDefault(require("./clinicRoutes"));
 exports.clinicRoutes = clinicRoutes_1.default;
-const compounderRoutes_1 = __importDefault(require("./compounderRoutes"));
-exports.compounderRoutes = compounderRoutes_1.default;
 const medStoreRoutes_1 = __importDefault(require("./medStoreRoutes"));
 exports.medStoreRoutes = medStoreRoutes_1.default;
 const medDocumentRoutes_1 = __importDefault(require("./medDocumentRoutes"));
 exports.medDocumentRoutes = medDocumentRoutes_1.default;
+const adminRoutes_1 = __importDefault(require("./adminRoutes"));
+exports.adminRoutes = adminRoutes_1.default;
+const medicineScheduleRoutes_1 = __importDefault(require("./medicineScheduleRoutes"));
+exports.medicineScheduleRoutes = medicineScheduleRoutes_1.default;

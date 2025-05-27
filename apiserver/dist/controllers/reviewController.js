@@ -12,7 +12,8 @@ const getReviews = async (_req, res) => {
             include: {
                 doctor: true,
                 hospital: true,
-                compounder: true
+                patient: true,
+                checkupCenter: true
             }
         });
         res.json(reviews);
@@ -32,7 +33,8 @@ const getReviewById = async (req, res) => {
             include: {
                 doctor: true,
                 hospital: true,
-                compounder: true
+                patient: true,
+                checkupCenter: true
             }
         });
         if (!review) {

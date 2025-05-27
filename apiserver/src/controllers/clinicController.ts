@@ -33,14 +33,6 @@ export const getClinics = async (req: Request, res: Response): Promise<void> => 
               phone: true,
             },
           },
-          compounder: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-            },
-          },
         },
         orderBy: {
           createdAt: 'desc',
@@ -71,19 +63,6 @@ export const getClinicById = async (req: Request, res: Response): Promise<void> 
       where: { id },
       include: {
         doctor: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            addressLine: true,
-            city: true,
-            state: true,
-            pin: true,
-            country: true,
-          },
-        },
-        compounder: {
           select: {
             id: true,
             name: true,
@@ -146,17 +125,11 @@ export const createClinic = async (req: RequestWithBody<ClinicCreationData>, res
         state: state || '',
         pin: pin || '',
         country: country || '',
+        verificationStatus: 'PENDING',
+        role: 'CLINIC'
       },
       include: {
         doctor: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-        compounder: {
           select: {
             id: true,
             name: true,
@@ -182,14 +155,6 @@ export const updateClinic = async (req: RequestWithBody<Partial<ClinicCreationDa
       data: req.body,
       include: {
         doctor: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-        compounder: {
           select: {
             id: true,
             name: true,
@@ -243,6 +208,7 @@ export const assignDoctorToClinic = async (req: Request, res: Response): Promise
     // Check if clinic exists
     const clinic = await prisma.clinic.findUnique({
       where: { id: clinicId },
+      include: { doctor: true }
     });
 
     if (!clinic) {
@@ -250,69 +216,58 @@ export const assignDoctorToClinic = async (req: Request, res: Response): Promise
       return;
     }
 
-    // Check if doctor exists
-    const doctor = await prisma.doctor.findUnique({
+    // Check if clinic already has a doctor
+    if (clinic.doctor) {
+      res.status(400).json({ error: 'Clinic already has a doctor assigned. Remove the current doctor first.'});
+      return;
+    }
+
+    // Check if doctor exists and is not already assigned to another clinic
+    const doctorToAssign = await prisma.doctor.findUnique({
       where: { id: doctorId },
+      include: { clinic: true }
     });
 
-    if (!doctor) {
+    if (!doctorToAssign) {
       res.status(404).json({ error: 'Doctor not found' });
       return;
     }
 
-    // Check if doctor is already assigned to another clinic
-    if (doctor.clinicId && doctor.clinicId !== clinicId) {
-      res.status(400).json({
-        error: 'Doctor is already assigned to another clinic',
-      });
+    if (doctorToAssign.clinic && doctorToAssign.clinic.id !== clinicId) {
+      res.status(400).json({ error: 'Doctor is already assigned to another clinic' });
       return;
     }
-
-    // Assign doctor to clinic
-    await prisma.doctor.update({
+    
+    // Assign doctor to clinic by updating the doctor model
+    const updatedDoctor = await prisma.doctor.update({
       where: { id: doctorId },
-      data: { clinicId },
-    });
-
-    // Get updated clinic with doctor info
-    const updatedClinic = await prisma.clinic.findUnique({
-      where: { id: clinicId },
-      include: {
-        doctor: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-        compounder: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
+      data: {
+        clinic: {
+          connect: { id: clinicId }
+        }
       },
+      include: { clinic: true }
     });
 
-    res.json({
-      message: 'Doctor assigned to clinic successfully',
-      clinic: updatedClinic,
+    // Fetch the updated clinic with the doctor info
+    const updatedClinic = await prisma.clinic.findUnique({
+      where: {id: clinicId},
+      include: {doctor: true}
     });
+
+    res.json(updatedClinic);
   } catch (error) {
     console.error('Error assigning doctor to clinic:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-}
+};
 
 // POST /api/clinics/:id/remove-doctor - Remove doctor from clinic
 export const removeDoctorFromClinic = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id: clinicId } = req.params;
 
-    // Check if clinic exists
+    // Check if clinic exists and has a doctor
     const clinic = await prisma.clinic.findUnique({
       where: { id: clinicId },
       include: { doctor: true },
@@ -324,188 +279,31 @@ export const removeDoctorFromClinic = async (req: Request, res: Response): Promi
     }
 
     if (!clinic.doctor) {
-      res.status(400).json({
-        error: 'No doctor is currently assigned to this clinic',
-      });
+      res.status(400).json({ error: 'No doctor assigned to this clinic' });
       return;
     }
 
-    // Remove doctor from clinic
-    await prisma.doctor.update({
-      where: { id: clinic.doctor.id },
-      data: { clinicId: null },
-    });
+    const doctorId = clinic.doctor.id;
 
-    // Get updated clinic
-    const updatedClinic = await prisma.clinic.findUnique({
-      where: { id: clinicId },
-      include: {
-        doctor: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-        compounder: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
+    // Remove doctor from clinic by updating the doctor model
+    // Set clinicId to null for the doctor
+    await prisma.doctor.update({
+      where: { id: doctorId },
+      data: {
+        clinicId: null,
       },
     });
 
-    res.json({
-      message: 'Doctor removed from clinic successfully',
-      clinic: updatedClinic,
+    // Fetch the updated clinic (doctor should be null)
+    const updatedClinic = await prisma.clinic.findUnique({
+        where: {id: clinicId},
+        include: {doctor: true}
     });
+
+    res.json(updatedClinic);
   } catch (error) {
     console.error('Error removing doctor from clinic:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-}
-
-// POST /api/clinics/:id/assign-compounder - Assign compounder to clinic
-export const assignCompounderToClinic = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id: clinicId } = req.params;
-    const { compounderId } = req.body;
-
-    if (!compounderId) {
-      res.status(400).json({ error: 'Compounder ID is required' });
-      return;
-    }
-
-    // Check if clinic exists
-    const clinic = await prisma.clinic.findUnique({
-      where: { id: clinicId },
-    });
-
-    if (!clinic) {
-      res.status(404).json({ error: 'Clinic not found' });
-      return;
-    }
-
-    // Check if compounder exists
-    const compounder = await prisma.compounder.findUnique({
-      where: { id: compounderId },
-    });
-
-    if (!compounder) {
-      res.status(404).json({ error: 'Compounder not found' });
-      return;
-    }
-
-    // Check if compounder is already assigned to another clinic
-    if (compounder.clinicId && compounder.clinicId !== clinicId) {
-      res.status(400).json({
-        error: 'Compounder is already assigned to another clinic',
-      });
-      return;
-    }
-
-    // Assign compounder to clinic
-    await prisma.compounder.update({
-      where: { id: compounderId },
-      data: { clinicId },
-    });
-
-    // Get updated clinic with compounder info
-    const updatedClinic = await prisma.clinic.findUnique({
-      where: { id: clinicId },
-      include: {
-        doctor: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-        compounder: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-      },
-    });
-
-    res.json({
-      message: 'Compounder assigned to clinic successfully',
-      clinic: updatedClinic,
-    });
-  } catch (error) {
-    console.error('Error assigning compounder to clinic:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-}
-
-// POST /api/clinics/:id/remove-compounder - Remove compounder from clinic
-export const removeCompounderFromClinic = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id: clinicId } = req.params;
-
-    // Check if clinic exists
-    const clinic = await prisma.clinic.findUnique({
-      where: { id: clinicId },
-      include: { compounder: true },
-    });
-
-    if (!clinic) {
-      res.status(404).json({ error: 'Clinic not found' });
-      return;
-    }
-
-    if (!clinic.compounder) {
-      res.status(400).json({
-        error: 'No compounder is currently assigned to this clinic',
-      });
-      return;
-    }
-
-    // Remove compounder from clinic
-    await prisma.compounder.update({
-      where: { id: clinic.compounder.id },
-      data: { clinicId: null },
-    });
-
-    // Get updated clinic
-    const updatedClinic = await prisma.clinic.findUnique({
-      where: { id: clinicId },
-      include: {
-        doctor: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-        compounder: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-      },
-    });
-
-    res.json({
-      message: 'Compounder removed from clinic successfully',
-      clinic: updatedClinic,
-    });
-  } catch (error) {
-    console.error('Error removing compounder from clinic:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-}
+};
 

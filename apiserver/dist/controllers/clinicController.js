@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.removeCompounderFromClinic = exports.assignCompounderToClinic = exports.removeDoctorFromClinic = exports.assignDoctorToClinic = exports.deleteClinic = exports.updateClinic = exports.createClinic = exports.getClinicById = exports.getClinics = void 0;
+exports.removeDoctorFromClinic = exports.assignDoctorToClinic = exports.deleteClinic = exports.updateClinic = exports.createClinic = exports.getClinicById = exports.getClinics = void 0;
 const db_1 = __importDefault(require("../utils/db"));
 const getClinics = async (req, res) => {
     try {
@@ -27,14 +27,6 @@ const getClinics = async (req, res) => {
                 take: parseInt(limit.toString()),
                 include: {
                     doctor: {
-                        select: {
-                            id: true,
-                            name: true,
-                            email: true,
-                            phone: true,
-                        },
-                    },
-                    compounder: {
                         select: {
                             id: true,
                             name: true,
@@ -72,19 +64,6 @@ const getClinicById = async (req, res) => {
             where: { id },
             include: {
                 doctor: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                        addressLine: true,
-                        city: true,
-                        state: true,
-                        pin: true,
-                        country: true,
-                    },
-                },
-                compounder: {
                     select: {
                         id: true,
                         name: true,
@@ -142,17 +121,11 @@ const createClinic = async (req, res) => {
                 state: state || '',
                 pin: pin || '',
                 country: country || '',
+                verificationStatus: 'PENDING',
+                role: 'CLINIC'
             },
             include: {
                 doctor: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                    },
-                },
-                compounder: {
                     select: {
                         id: true,
                         name: true,
@@ -178,14 +151,6 @@ const updateClinic = async (req, res) => {
             data: req.body,
             include: {
                 doctor: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                    },
-                },
-                compounder: {
                     select: {
                         id: true,
                         name: true,
@@ -237,57 +202,46 @@ const assignDoctorToClinic = async (req, res) => {
         // Check if clinic exists
         const clinic = await db_1.default.clinic.findUnique({
             where: { id: clinicId },
+            include: { doctor: true }
         });
         if (!clinic) {
             res.status(404).json({ error: 'Clinic not found' });
             return;
         }
-        // Check if doctor exists
-        const doctor = await db_1.default.doctor.findUnique({
+        // Check if clinic already has a doctor
+        if (clinic.doctor) {
+            res.status(400).json({ error: 'Clinic already has a doctor assigned. Remove the current doctor first.' });
+            return;
+        }
+        // Check if doctor exists and is not already assigned to another clinic
+        const doctorToAssign = await db_1.default.doctor.findUnique({
             where: { id: doctorId },
+            include: { clinic: true }
         });
-        if (!doctor) {
+        if (!doctorToAssign) {
             res.status(404).json({ error: 'Doctor not found' });
             return;
         }
-        // Check if doctor is already assigned to another clinic
-        if (doctor.clinicId && doctor.clinicId !== clinicId) {
-            res.status(400).json({
-                error: 'Doctor is already assigned to another clinic',
-            });
+        if (doctorToAssign.clinic && doctorToAssign.clinic.id !== clinicId) {
+            res.status(400).json({ error: 'Doctor is already assigned to another clinic' });
             return;
         }
-        // Assign doctor to clinic
-        await db_1.default.doctor.update({
+        // Assign doctor to clinic by updating the doctor model
+        const updatedDoctor = await db_1.default.doctor.update({
             where: { id: doctorId },
-            data: { clinicId },
+            data: {
+                clinic: {
+                    connect: { id: clinicId }
+                }
+            },
+            include: { clinic: true }
         });
-        // Get updated clinic with doctor info
+        // Fetch the updated clinic with the doctor info
         const updatedClinic = await db_1.default.clinic.findUnique({
             where: { id: clinicId },
-            include: {
-                doctor: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                    },
-                },
-                compounder: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                    },
-                },
-            },
+            include: { doctor: true }
         });
-        res.json({
-            message: 'Doctor assigned to clinic successfully',
-            clinic: updatedClinic,
-        });
+        res.json(updatedClinic);
     }
     catch (error) {
         console.error('Error assigning doctor to clinic:', error);
@@ -299,7 +253,7 @@ exports.assignDoctorToClinic = assignDoctorToClinic;
 const removeDoctorFromClinic = async (req, res) => {
     try {
         const { id: clinicId } = req.params;
-        // Check if clinic exists
+        // Check if clinic exists and has a doctor
         const clinic = await db_1.default.clinic.findUnique({
             where: { id: clinicId },
             include: { doctor: true },
@@ -309,42 +263,24 @@ const removeDoctorFromClinic = async (req, res) => {
             return;
         }
         if (!clinic.doctor) {
-            res.status(400).json({
-                error: 'No doctor is currently assigned to this clinic',
-            });
+            res.status(400).json({ error: 'No doctor assigned to this clinic' });
             return;
         }
-        // Remove doctor from clinic
+        const doctorId = clinic.doctor.id;
+        // Remove doctor from clinic by updating the doctor model
+        // Set clinicId to null for the doctor
         await db_1.default.doctor.update({
-            where: { id: clinic.doctor.id },
-            data: { clinicId: null },
-        });
-        // Get updated clinic
-        const updatedClinic = await db_1.default.clinic.findUnique({
-            where: { id: clinicId },
-            include: {
-                doctor: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                    },
-                },
-                compounder: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                    },
-                },
+            where: { id: doctorId },
+            data: {
+                clinicId: null,
             },
         });
-        res.json({
-            message: 'Doctor removed from clinic successfully',
-            clinic: updatedClinic,
+        // Fetch the updated clinic (doctor should be null)
+        const updatedClinic = await db_1.default.clinic.findUnique({
+            where: { id: clinicId },
+            include: { doctor: true }
         });
+        res.json(updatedClinic);
     }
     catch (error) {
         console.error('Error removing doctor from clinic:', error);
@@ -352,130 +288,3 @@ const removeDoctorFromClinic = async (req, res) => {
     }
 };
 exports.removeDoctorFromClinic = removeDoctorFromClinic;
-// POST /api/clinics/:id/assign-compounder - Assign compounder to clinic
-const assignCompounderToClinic = async (req, res) => {
-    try {
-        const { id: clinicId } = req.params;
-        const { compounderId } = req.body;
-        if (!compounderId) {
-            res.status(400).json({ error: 'Compounder ID is required' });
-            return;
-        }
-        // Check if clinic exists
-        const clinic = await db_1.default.clinic.findUnique({
-            where: { id: clinicId },
-        });
-        if (!clinic) {
-            res.status(404).json({ error: 'Clinic not found' });
-            return;
-        }
-        // Check if compounder exists
-        const compounder = await db_1.default.compounder.findUnique({
-            where: { id: compounderId },
-        });
-        if (!compounder) {
-            res.status(404).json({ error: 'Compounder not found' });
-            return;
-        }
-        // Check if compounder is already assigned to another clinic
-        if (compounder.clinicId && compounder.clinicId !== clinicId) {
-            res.status(400).json({
-                error: 'Compounder is already assigned to another clinic',
-            });
-            return;
-        }
-        // Assign compounder to clinic
-        await db_1.default.compounder.update({
-            where: { id: compounderId },
-            data: { clinicId },
-        });
-        // Get updated clinic with compounder info
-        const updatedClinic = await db_1.default.clinic.findUnique({
-            where: { id: clinicId },
-            include: {
-                doctor: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                    },
-                },
-                compounder: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                    },
-                },
-            },
-        });
-        res.json({
-            message: 'Compounder assigned to clinic successfully',
-            clinic: updatedClinic,
-        });
-    }
-    catch (error) {
-        console.error('Error assigning compounder to clinic:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-};
-exports.assignCompounderToClinic = assignCompounderToClinic;
-// POST /api/clinics/:id/remove-compounder - Remove compounder from clinic
-const removeCompounderFromClinic = async (req, res) => {
-    try {
-        const { id: clinicId } = req.params;
-        // Check if clinic exists
-        const clinic = await db_1.default.clinic.findUnique({
-            where: { id: clinicId },
-            include: { compounder: true },
-        });
-        if (!clinic) {
-            res.status(404).json({ error: 'Clinic not found' });
-            return;
-        }
-        if (!clinic.compounder) {
-            res.status(400).json({
-                error: 'No compounder is currently assigned to this clinic',
-            });
-            return;
-        }
-        // Remove compounder from clinic
-        await db_1.default.compounder.update({
-            where: { id: clinic.compounder.id },
-            data: { clinicId: null },
-        });
-        // Get updated clinic
-        const updatedClinic = await db_1.default.clinic.findUnique({
-            where: { id: clinicId },
-            include: {
-                doctor: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                    },
-                },
-                compounder: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                    },
-                },
-            },
-        });
-        res.json({
-            message: 'Compounder removed from clinic successfully',
-            clinic: updatedClinic,
-        });
-    }
-    catch (error) {
-        console.error('Error removing compounder from clinic:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-};
-exports.removeCompounderFromClinic = removeCompounderFromClinic;

@@ -6,7 +6,8 @@ import {
   updateCheckupCenter,
   deleteCheckupCenter,
   assignPatientToCheckupCenter,
-  removePatientFromCheckupCenter
+  removePatientFromCheckupCenter,
+  updatePatientNextVisit
 } from '../controllers/checkupCenters';
 import { authenticate } from '../middleware/authMiddleware';
 import { authorize } from '../middleware/authMiddleware';
@@ -26,5 +27,8 @@ router.delete('/:id', authenticate, authorize([Role.CHECKUP_CENTER, Role.ADMIN])
 // Patient assignment - typically done by an admin or the center itself
 router.post('/assign-patient', authenticate, authorize([Role.CHECKUP_CENTER, Role.ADMIN]), assignPatientToCheckupCenter);
 router.post('/remove-patient', authenticate, authorize([Role.CHECKUP_CENTER, Role.ADMIN]), removePatientFromCheckupCenter);
+
+// Route to update next visit date for a patient in a checkup center
+router.patch('/:checkupCenterId/patients/:patientId/next-visit', authenticate, authorize([Role.CHECKUP_CENTER, Role.ADMIN]), updatePatientNextVisit);
 
 export default router;
