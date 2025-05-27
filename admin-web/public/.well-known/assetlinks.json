@@ -1,0 +1,13 @@
+[
+    {
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.techmorphers.bharatcare.twa",
+        "sha256_cert_fingerprints": [
+          "C3:B1:41:2D:14:82:43:AF:D2:11:F2:D7:C2:66:E4:56:A3:FA:FB:F1:7A:9E:C6:42:46:0C:BE:31:31:40:45:70"
+        ]
+      }
+    }
+  ]
+  
