@@ -659,7 +659,7 @@ const ServiceReferralComponent = () => {
                   ) : sentReferrals.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <MoveRight className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                      <p>You haven't sent any service referrals yet.</p>
+                      <p>You haven&apos;t sent any service referrals yet.</p>
                       <Button 
                         variant="outline" 
                         className="mt-4"
@@ -732,7 +732,7 @@ const ServiceReferralComponent = () => {
                   ) : receivedReferrals.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <Award className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                      <p>You haven't received any service referrals yet.</p>
+                      <p>You haven&apos;t received any service referrals yet.</p>
                     </div>
                   ) : (
                     <Table>

@@ -419,7 +419,7 @@ const RewardsComponent = () => {
                   <DialogHeader>
                     <DialogTitle>Create New Referral</DialogTitle>
                     <DialogDescription>
-                      Search and select a user you're referring to BharatCare.
+                      Search and select a user you&apos;re referring to BharatCare.
                     </DialogDescription>
                   </DialogHeader>
                   
@@ -633,7 +633,7 @@ const RewardsComponent = () => {
                   ) : referralsGiven.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <Send className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                      <p>You haven't given any referrals yet.</p>
+                      <p>You haven&apos;t given any referrals yet.</p>
                       <Button 
                         variant="outline" 
                         size="sm" 
