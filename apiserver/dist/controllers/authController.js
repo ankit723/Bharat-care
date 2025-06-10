@@ -8,6 +8,7 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const client_1 = require("@prisma/client");
 const config_1 = __importDefault(require("../config"));
+const userIdGenerator_1 = require("../utils/userIdGenerator");
 const prisma = new client_1.PrismaClient();
 // Generate JWT token for user
 const generateToken = (userId, role, verificationStatus) => {
@@ -92,6 +93,8 @@ const register = async (req, res) => {
             return;
         }
         const hashedPassword = await bcryptjs_1.default.hash(password, 10);
+        // Generate userId from name
+        const userId = (0, userIdGenerator_1.generateUserId)(name);
         let newUser;
         const dbRoleToStore = normalizedRequestRole.toLowerCase(); // Store lowercase in DB as per schema defaults
         const basicUserData = {
@@ -104,6 +107,7 @@ const register = async (req, res) => {
             state: state || '',
             pin: pin || '',
             country: country || '',
+            userId, // Add the generated userId
         };
         switch (normalizedRequestRole) {
             case client_1.Role.DOCTOR:

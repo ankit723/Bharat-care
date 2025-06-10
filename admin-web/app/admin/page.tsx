@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 // import { redirect } from 'next/navigation'; // Removed redirect, will use error card
 
 // Define which fields are sortable
-type SortableField = 'name' | 'email' | 'role' | 'phone' | 'createdAt';
+type SortableField = 'name' | 'email' | 'role' | 'phone' | 'userId' | 'createdAt';
 
 const AdminVerificationPage = () => {
   const [pendingUsers, setPendingUsers] = useState<VerifiableUser[]>([]);
@@ -83,7 +83,8 @@ const AdminVerificationPage = () => {
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         // Role is already filtered, but keep for consistency if needed for other searches
         user.role.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        (user.phone && user.phone.toLowerCase().includes(searchTerm.toLowerCase()))
+        (user.phone && user.phone.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.userId && user.userId.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -252,14 +253,14 @@ const AdminVerificationPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {(['name', 'email', 'role', 'phone', 'createdAt'] as SortableField[]).map((field) => (
+                    {(['name', 'userId', 'email', 'role', 'phone', 'createdAt'] as SortableField[]).map((field) => (
                       <TableHead 
                         key={field} 
                         className="cursor-pointer group hover:bg-muted/50 transition-colors"
                         onClick={() => handleSort(field)}
                       >
                         <div className="flex items-center">
-                          {field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')} {/* Prettify name */}
+                          {field === 'userId' ? 'User ID' : field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')} {/* Prettify name */}
                           {getSortIcon(field)}
                         </div>
                       </TableHead>
@@ -273,6 +274,7 @@ const AdminVerificationPage = () => {
                     return (
                       <TableRow key={submissionKey}>
                         <TableCell className="font-medium text-gray-800">{user.name}</TableCell>
+                        <TableCell className="text-gray-600">{user.userId || 'N/A'}</TableCell>
                         <TableCell className="text-gray-600 break-all">{user.email}</TableCell>
                         <TableCell className="capitalize">
                           {user.role.toLowerCase().replace('_', ' ')}

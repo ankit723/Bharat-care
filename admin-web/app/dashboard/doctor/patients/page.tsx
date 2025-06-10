@@ -34,6 +34,7 @@ interface Patient {
   pin?: string;
   country?: string;
   doctorNextVisit?: Date | null;
+  userId?: string;
 }
 
 type SortField = 'name' | 'email' | 'city' | 'doctorNextVisit';
@@ -140,7 +141,8 @@ const DoctorPatientsPage = () => {
         : allUnassignedPatients.filter(
           (patient) =>
               patient.name.toLowerCase().includes(modalSearchTerm.toLowerCase()) ||
-              patient.email.toLowerCase().includes(modalSearchTerm.toLowerCase())
+              patient.email.toLowerCase().includes(modalSearchTerm.toLowerCase()) ||
+              (patient.userId && patient.userId.toLowerCase().includes(modalSearchTerm.toLowerCase()))
           );
       setModalDisplayedUnassignedPatients(filtered);
     }
@@ -167,7 +169,8 @@ const DoctorPatientsPage = () => {
         patient.email.toLowerCase().includes(mainSearchTerm.toLowerCase()) ||
         patient.phone.toLowerCase().includes(mainSearchTerm.toLowerCase()) ||
         patient.city?.toLowerCase().includes(mainSearchTerm.toLowerCase()) ||
-        patient.state?.toLowerCase().includes(mainSearchTerm.toLowerCase())
+        patient.state?.toLowerCase().includes(mainSearchTerm.toLowerCase()) ||
+        (patient.userId && patient.userId.toLowerCase().includes(mainSearchTerm.toLowerCase()))
       );
     };
 
@@ -288,7 +291,7 @@ const DoctorPatientsPage = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input 
-                  placeholder="Search patients by name or email..."
+                  placeholder="Search patients by name, email, ID..."
                   value={modalSearchTerm}
                   onChange={(e) => setModalSearchTerm(e.target.value)}
                   className="pl-10"
@@ -313,6 +316,7 @@ const DoctorPatientsPage = () => {
                       onClick={() => setSelectedPatientForModal(patient)}
                     >
                       <div className="text-sm md:text-base font-medium text-gray-800">{patient.name}</div>
+                      {patient.userId && <div className="text-xs md:text-sm text-gray-600 mt-1">ID: {patient.userId}</div>}
                       <div className="text-xs md:text-sm text-gray-500 mt-1">{patient.email}</div>
                       {(patient.city || patient.state) && (
                         <div className="text-xs text-gray-400 mt-1">{patient.city && patient.state ? `${patient.city}, ${patient.state}` : patient.city || patient.state}</div>
@@ -325,7 +329,10 @@ const DoctorPatientsPage = () => {
               {selectedPatientForModal && (
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                   <h4 className="font-medium text-gray-800 text-sm md:text-base">Selected Patient</h4>
-                  <p className="text-sm text-gray-600">{selectedPatientForModal.name} - {selectedPatientForModal.email}</p>
+                  <p className="text-sm text-gray-600">
+                    {selectedPatientForModal.name} 
+                    {selectedPatientForModal.userId && ` (${selectedPatientForModal.userId})`} - {selectedPatientForModal.email}
+                  </p>
                 </div>
               )}
             </div>
@@ -367,12 +374,12 @@ const DoctorPatientsPage = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input 
-                  placeholder="Search your patients by name, email, phone, or location..."
+                  placeholder="Search your patients by name, email, ID, phone, or location..."
                   value={mainSearchTerm}
                   onChange={(e) => setMainSearchTerm(e.target.value)}
                   className="pl-10"
                 />
-                    </div>
+              </div>
             </div>
 
             {/* Desktop Table View */}
@@ -388,6 +395,7 @@ const DoctorPatientsPage = () => {
                         Name {getSortIcon('name')}
                       </div>
                     </TableHead>
+                    <TableHead>User ID</TableHead>
                     <TableHead 
                       className="cursor-pointer hover:bg-gray-50"
                       onClick={() => handleSort('email')}
@@ -420,6 +428,7 @@ const DoctorPatientsPage = () => {
                   {displayedAssignedPatients.map((patient) => (
                     <TableRow key={patient.id}>
                       <TableCell className="font-medium text-gray-800">{patient.name}</TableCell>
+                      <TableCell className="text-gray-600">{patient.userId || 'N/A'}</TableCell>
                       <TableCell className="text-gray-600 break-all">{patient.email}</TableCell>
                       <TableCell className="text-gray-600">{patient.phone}</TableCell>
                       <TableCell className="text-gray-600">
@@ -464,6 +473,7 @@ const DoctorPatientsPage = () => {
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="font-medium text-gray-800">{patient.name}</div>
+                          <div className="text-sm text-gray-600">{patient.userId || 'No User ID'}</div>
                           <div className="text-sm text-gray-600 break-all">{patient.email}</div>
                           <div className="text-sm text-gray-600">{patient.phone}</div>
                           {(patient.city || patient.state) && (
@@ -529,6 +539,10 @@ const DoctorPatientsPage = () => {
                 <div>
                   <label className="text-sm font-medium text-gray-500">Name</label>
                   <p className="text-gray-900">{selectedPatientForDetails.name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">User ID</label>
+                  <p className="text-gray-900">{selectedPatientForDetails.userId || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Email</label>

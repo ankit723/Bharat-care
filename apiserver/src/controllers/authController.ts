@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient, Role, VerificationStatus } from '@prisma/client';
 import config from '../config';
+import { generateUserId } from '../utils/userIdGenerator';
 
 const prisma = new PrismaClient();
 
@@ -110,6 +111,9 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Generate userId from name
+    const userId = generateUserId(name);
 
     let newUser: any;
     const dbRoleToStore = normalizedRequestRole.toLowerCase(); // Store lowercase in DB as per schema defaults
@@ -124,6 +128,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       state: state || '',
       pin: pin || '',
       country: country || '',
+      userId, // Add the generated userId
     };
 
     switch (normalizedRequestRole) {

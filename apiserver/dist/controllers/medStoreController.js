@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.withdrawHandForPrescription = exports.raiseHandForPrescription = exports.getAvailablePrescriptions = exports.deleteMedStore = exports.updateMedStore = exports.createMedStore = exports.getMedStoreById = exports.getMedStores = void 0;
 const db_1 = __importDefault(require("../utils/db")); // Changed to shared prisma instance
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const userIdGenerator_1 = require("../utils/userIdGenerator");
 // GET /api/medstores - Get all med stores
 const getMedStores = async (req, res) => {
     try {
@@ -43,11 +44,19 @@ const getMedStores = async (req, res) => {
                 total,
                 pages: Math.ceil(total / Number(limit)),
             },
+            search: {
+                term: search ? String(search) : '',
+                recommendedDebounceMs: 300, // Recommend client-side debounce time
+                minSearchLength: 2, // Recommend minimum search term length
+            }
         });
     }
     catch (error) {
         console.error('Error fetching med stores:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Failed to fetch med stores',
+            message: error instanceof Error ? error.message : 'Unknown error occurred'
+        });
     }
 };
 exports.getMedStores = getMedStores;
@@ -109,6 +118,8 @@ const createMedStore = async (req, res) => {
         // Hash password
         const saltRounds = 10;
         const hashedPassword = await bcryptjs_1.default.hash(password, saltRounds);
+        // Generate userId from name
+        const userId = (0, userIdGenerator_1.generateUserId)(name);
         // Create med store
         const medStore = await db_1.default.medStore.create({
             data: {
@@ -122,7 +133,8 @@ const createMedStore = async (req, res) => {
                 pin: pin || '',
                 country: country || '',
                 verificationStatus: 'PENDING',
-                role: 'MEDSTORE'
+                role: 'MEDSTORE',
+                userId,
             },
         });
         // Remove password from response

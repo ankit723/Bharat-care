@@ -29,6 +29,7 @@ app.use('/api/checkup-centers', index_1.checkupCentersRoutes);
 app.use('/api/med-documents', index_1.medDocumentRoutes);
 app.use('/api/admin', adminRoutes_1.default);
 app.use('/api/medicine-schedules', index_1.medicineScheduleRoutes);
+app.use('/api/rewards', index_1.rewardRoutes);
 // Add a ping endpoint for testing connectivity
 app.get('/api/ping', (req, res) => {
     // Log request details

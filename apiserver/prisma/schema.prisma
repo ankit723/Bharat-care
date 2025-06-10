@@ -44,8 +44,15 @@ enum Specialization {
   INFECTIOUS_DISEASES
 }
 
+enum TransactionType {
+  REFERRAL_REWARD
+  ADMIN_ADJUSTMENT
+  OTHER
+}
+
 model Doctor {
   id            String   @id @default(uuid())
+  userId        String   @unique
   role          String   @default("doctor")
   name          String 
   specialization Specialization @default(CARDIOLOGY)
@@ -58,6 +65,7 @@ model Doctor {
   email         String   @unique
   password      String
   verificationStatus VerificationStatus @default(PENDING)
+  rewardPoints  Int      @default(0)
   clinicId      String?  @unique
   clinic        Clinic?  @relation(fields: [clinicId], references: [id])
 
@@ -71,12 +79,20 @@ model Doctor {
 
   patients Patient[]
 
+  // Referral relationships
+  referralsGiven     Referral[] @relation("ReferrerDoctor")
+  referralsReceived  Referral[] @relation("ReferredDoctor")
+  
+  // Reward transaction relationship
+  rewardTransactions RewardTransaction[] @relation("DoctorRewardTransactions")
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
 
 model Clinic {
   id            String   @id @default(uuid())
+  userId        String   @unique
   role          String   @default("clinic")
   name          String
   email         String   @unique
@@ -88,7 +104,15 @@ model Clinic {
   pin           String
   country       String
   verificationStatus VerificationStatus @default(PENDING)
+  rewardPoints  Int      @default(0)
   doctor        Doctor?  @relation
+
+  // Referral relationships
+  referralsGiven     Referral[] @relation("ReferrerClinic")
+  referralsReceived  Referral[] @relation("ReferredClinic")
+  
+  // Reward transaction relationship
+  rewardTransactions RewardTransaction[] @relation("ClinicRewardTransactions")
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -96,6 +120,7 @@ model Clinic {
 
 model MedStore {
   id            String   @id @default(uuid())
+  userId        String   @unique
   role          String   @default("medStore")
   name          String
   email         String   @unique
@@ -107,8 +132,16 @@ model MedStore {
   pin String
   country String
   verificationStatus VerificationStatus @default(PENDING)
+  rewardPoints  Int      @default(0)
 
   raisedHands   MedStoreHandRaise[]
+
+  // Referral relationships
+  referralsGiven     Referral[] @relation("ReferrerMedStore")
+  referralsReceived  Referral[] @relation("ReferredMedStore")
+  
+  // Reward transaction relationship
+  rewardTransactions RewardTransaction[] @relation("MedStoreRewardTransactions")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -116,6 +149,7 @@ model MedStore {
 
 model Hospital {
   id            String   @id @default(uuid())
+  userId        String   @unique
   role          String   @default("hospital")
   name          String
   email         String   @unique
@@ -127,6 +161,7 @@ model Hospital {
   pin String
   country String
   verificationStatus VerificationStatus @default(PENDING)
+  rewardPoints  Int      @default(0)
 
   doctor Doctor[]
 
@@ -134,12 +169,20 @@ model Hospital {
 
   patients Patient[]
 
+  // Referral relationships
+  referralsGiven     Referral[] @relation("ReferrerHospital")
+  referralsReceived  Referral[] @relation("ReferredHospital")
+  
+  // Reward transaction relationship
+  rewardTransactions RewardTransaction[] @relation("HospitalRewardTransactions")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model CheckupCenter {
   id            String   @id @default(uuid())
+  userId        String   @unique
   name          String
   email         String   @unique
   password      String
@@ -151,6 +194,7 @@ model CheckupCenter {
   country       String
   verificationStatus VerificationStatus @default(PENDING)
   role          String   @default("checkup_center")
+  rewardPoints  Int      @default(0)
 
   patients      Patient[]     @relation("CheckupCenterPatients")
   medDocuments  MedDocument[] @relation("CheckupCenterMedDocuments")
@@ -158,6 +202,13 @@ model CheckupCenter {
   checkupCenterNextVisit checkupCenterNextVisit[]
 
   reviews Review[]
+
+  // Referral relationships
+  referralsGiven     Referral[] @relation("ReferrerCheckupCenter")
+  referralsReceived  Referral[] @relation("ReferredCheckupCenter")
+  
+  // Reward transaction relationship
+  rewardTransactions RewardTransaction[] @relation("CheckupCenterRewardTransactions")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -266,6 +317,7 @@ model ScheduledMedicineItem {
 
 model Patient {
   id            String   @id @default(uuid())
+  userId        String   @unique
   role          String   @default("patient")
   name          String
   email         String   @unique
@@ -276,6 +328,7 @@ model Patient {
   state String
   pin String
   country String
+  rewardPoints  Int      @default(0)
 
   doctors Doctor[]
 
@@ -292,6 +345,14 @@ model Patient {
   checkupCenterNextVisit checkupCenterNextVisit[]
 
   medicineSchedules    MedicineSchedule[] // Relation to medicine schedules
+
+  // Referral relationships
+  referralsGiven     Referral[] @relation("ReferrerPatient")
+  referralsReceived  Referral[] @relation("ReferredPatient")
+  serviceReferrals   Referral[] @relation("ServiceReferralPatient")
+  
+  // Reward transaction relationship
+  rewardTransactions RewardTransaction[] @relation("PatientRewardTransactions")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -319,6 +380,7 @@ model Review {
 
 model Admin {
   id            String   @id @default(uuid())
+  userId        String   @unique
   role          String   @default("admin")
   name          String
   email         String   @unique
@@ -329,4 +391,152 @@ model Admin {
   pin String
   country String
   password      String
+  rewardPoints  Int      @default(0)
+  
+  // System settings managed by admin
+  rewardSettings RewardSetting[]
+  
+  // Referrals given by admin
+  referralsGiven Referral[] @relation("ReferrerAdmin")
+  
+  // Reward transaction relationship
+  rewardTransactions RewardTransaction[] @relation("AdminRewardTransactions")
+}
+
+// New model for tracking referrals
+model Referral {
+  id              String   @id @default(uuid())
+  
+  // Who referred - polymorphic relationship
+  referrerId      String
+  referrerRole    Role
+  
+  // Doctor referrer
+  referrerDoctorId String?
+  referrerDoctor  Doctor?  @relation("ReferrerDoctor", fields: [referrerDoctorId], references: [id])
+  
+  // Patient referrer
+  referrerPatientId String?
+  referrerPatient  Patient? @relation("ReferrerPatient", fields: [referrerPatientId], references: [id])
+  
+  // Hospital referrer
+  referrerHospitalId String?
+  referrerHospital  Hospital? @relation("ReferrerHospital", fields: [referrerHospitalId], references: [id])
+  
+  // MedStore referrer
+  referrerMedStoreId String?
+  referrerMedStore  MedStore? @relation("ReferrerMedStore", fields: [referrerMedStoreId], references: [id])
+  
+  // Clinic referrer
+  referrerClinicId String?
+  referrerClinic   Clinic? @relation("ReferrerClinic", fields: [referrerClinicId], references: [id])
+  
+  // CheckupCenter referrer
+  referrerCheckupCenterId String?
+  referrerCheckupCenter  CheckupCenter? @relation("ReferrerCheckupCenter", fields: [referrerCheckupCenterId], references: [id])
+  
+  // Admin referrer
+  referrerAdminId String?
+  referrerAdmin   Admin? @relation("ReferrerAdmin", fields: [referrerAdminId], references: [id])
+  
+  // Who was referred - polymorphic relationship
+  referredId      String
+  referredRole    Role
+  
+  // Doctor referred
+  referredDoctorId String?
+  referredDoctor  Doctor? @relation("ReferredDoctor", fields: [referredDoctorId], references: [id])
+  
+  // Patient referred
+  referredPatientId String?
+  referredPatient  Patient? @relation("ReferredPatient", fields: [referredPatientId], references: [id])
+  
+  // Hospital referred
+  referredHospitalId String?
+  referredHospital  Hospital? @relation("ReferredHospital", fields: [referredHospitalId], references: [id])
+  
+  // MedStore referred
+  referredMedStoreId String?
+  referredMedStore  MedStore? @relation("ReferredMedStore", fields: [referredMedStoreId], references: [id])
+  
+  // Clinic referred
+  referredClinicId String?
+  referredClinic   Clinic? @relation("ReferredClinic", fields: [referredClinicId], references: [id])
+  
+  // CheckupCenter referred
+  referredCheckupCenterId String?
+  referredCheckupCenter  CheckupCenter? @relation("ReferredCheckupCenter", fields: [referredCheckupCenterId], references: [id])
+  
+  pointsAwarded    Int
+  status           String   @default("PENDING") // PENDING, COMPLETED, REJECTED
+  completedAt      DateTime?
+  
+  // Service referral fields
+  patientId        String?
+  patientDetails   Patient? @relation("ServiceReferralPatient", fields: [patientId], references: [id])
+  serviceType      String?  // DOCTOR_CONSULT, MEDSTORE_PURCHASE, CHECKUP_SERVICE
+  notes            String?
+  isServiceReferral Boolean @default(false)
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  @@index([referrerId, referrerRole])
+  @@index([referredId, referredRole])
+  @@index([patientId])
+  @@index([isServiceReferral])
+}
+
+// Model for tracking reward transactions
+model RewardTransaction {
+  id              String   @id @default(uuid())
+  
+  // Who received points - polymorphic relationship
+  userId          String
+  userRole        Role
+  
+  // Specific entity relationships
+  doctorId        String?
+  doctor          Doctor?  @relation("DoctorRewardTransactions", fields: [doctorId], references: [id])
+  
+  patientId       String?
+  patient         Patient? @relation("PatientRewardTransactions", fields: [patientId], references: [id])
+  
+  hospitalId      String?
+  hospital        Hospital? @relation("HospitalRewardTransactions", fields: [hospitalId], references: [id])
+  
+  medStoreId      String?
+  medStore        MedStore? @relation("MedStoreRewardTransactions", fields: [medStoreId], references: [id])
+  
+  clinicId        String?
+  clinic          Clinic? @relation("ClinicRewardTransactions", fields: [clinicId], references: [id])
+  
+  checkupCenterId String?
+  checkupCenter   CheckupCenter? @relation("CheckupCenterRewardTransactions", fields: [checkupCenterId], references: [id])
+  
+  adminId         String?
+  admin           Admin? @relation("AdminRewardTransactions", fields: [adminId], references: [id])
+  
+  points          Int
+  transactionType TransactionType
+  description     String
+  referralId      String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([userId, userRole])
+}
+
+// Model for storing reward settings
+model RewardSetting {
+  id              String   @id @default(uuid())
+  key             String   @unique // e.g., "referral_points"
+  value           Int
+  description     String
+  
+  updatedById     String
+  updatedBy       Admin    @relation(fields: [updatedById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

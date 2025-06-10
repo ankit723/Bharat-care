@@ -18,6 +18,7 @@ const mapToVerifiableEntity = (entity, entityType, userFriendlyRole) => {
         name: entity.name,
         email: entity.email,
         phone: entity.phone || null,
+        userId: entity.userId || null,
         role: userFriendlyRole,
         entityType: entityType,
         verificationStatus: entity.verificationStatus,
@@ -28,23 +29,23 @@ const getPendingVerifications = async (req, res) => {
     try {
         const pendingDoctors = await db_1.default.doctor.findMany({
             where: { verificationStatus: 'PENDING' },
-            select: { id: true, name: true, email: true, phone: true, createdAt: true, verificationStatus: true },
+            select: { id: true, name: true, email: true, phone: true, userId: true, createdAt: true, verificationStatus: true },
         });
         const pendingClinics = await db_1.default.clinic.findMany({
             where: { verificationStatus: 'PENDING' },
-            select: { id: true, name: true, email: true, phone: true, createdAt: true, verificationStatus: true },
+            select: { id: true, name: true, email: true, phone: true, userId: true, createdAt: true, verificationStatus: true },
         });
         const pendingHospitals = await db_1.default.hospital.findMany({
             where: { verificationStatus: 'PENDING' },
-            select: { id: true, name: true, email: true, phone: true, createdAt: true, verificationStatus: true },
+            select: { id: true, name: true, email: true, phone: true, userId: true, createdAt: true, verificationStatus: true },
         });
         const pendingCheckupCenters = await db_1.default.checkupCenter.findMany({
             where: { verificationStatus: 'PENDING' },
-            select: { id: true, name: true, email: true, phone: true, createdAt: true, verificationStatus: true },
+            select: { id: true, name: true, email: true, phone: true, userId: true, createdAt: true, verificationStatus: true },
         });
         const pendingMedStores = await db_1.default.medStore.findMany({
             where: { verificationStatus: 'PENDING' },
-            select: { id: true, name: true, email: true, phone: true, createdAt: true, verificationStatus: true },
+            select: { id: true, name: true, email: true, phone: true, userId: true, createdAt: true, verificationStatus: true },
         });
         const allPending = [
             ...pendingDoctors.map(d => mapToVerifiableEntity(d, 'doctor', 'Doctor')),

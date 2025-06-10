@@ -9,6 +9,7 @@ import medStoreRoutes from './medStoreRoutes';
 import medDocumentRoutes from './medDocumentRoutes';
 import adminRoutes from './adminRoutes';
 import medicineScheduleRoutes from './medicineScheduleRoutes';
+import rewardRoutes from './rewardRoutes';
 
 export {
   authRoutes,
@@ -21,5 +22,6 @@ export {
   medStoreRoutes,
   medDocumentRoutes,
   adminRoutes,
-  medicineScheduleRoutes
+  medicineScheduleRoutes,
+  rewardRoutes
 }; 

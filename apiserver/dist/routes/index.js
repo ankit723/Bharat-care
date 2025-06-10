@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.medicineScheduleRoutes = exports.adminRoutes = exports.medDocumentRoutes = exports.medStoreRoutes = exports.clinicRoutes = exports.checkupCentersRoutes = exports.reviewRoutes = exports.hospitalRoutes = exports.patientRoutes = exports.doctorRoutes = exports.authRoutes = void 0;
+exports.rewardRoutes = exports.medicineScheduleRoutes = exports.adminRoutes = exports.medDocumentRoutes = exports.medStoreRoutes = exports.clinicRoutes = exports.checkupCentersRoutes = exports.reviewRoutes = exports.hospitalRoutes = exports.patientRoutes = exports.doctorRoutes = exports.authRoutes = void 0;
 const doctorRoutes_1 = __importDefault(require("./doctorRoutes"));
 exports.doctorRoutes = doctorRoutes_1.default;
 const patientRoutes_1 = __importDefault(require("./patientRoutes"));
@@ -26,3 +26,5 @@ const adminRoutes_1 = __importDefault(require("./adminRoutes"));
 exports.adminRoutes = adminRoutes_1.default;
 const medicineScheduleRoutes_1 = __importDefault(require("./medicineScheduleRoutes"));
 exports.medicineScheduleRoutes = medicineScheduleRoutes_1.default;
+const rewardRoutes_1 = __importDefault(require("./rewardRoutes"));
+exports.rewardRoutes = rewardRoutes_1.default;

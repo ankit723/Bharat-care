@@ -7,6 +7,7 @@ exports.updatePatientNextVisit = exports.removePatientFromCheckupCenter = export
 const db_1 = __importDefault(require("../utils/db")); // Use shared prisma instance
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const client_1 = require("@prisma/client");
+const userIdGenerator_1 = require("../utils/userIdGenerator");
 // Get all checkup centers with pagination and search
 const getCheckupCenters = async (req, res) => {
     try {
@@ -44,11 +45,19 @@ const getCheckupCenters = async (req, res) => {
                 total,
                 pages: Math.ceil(total / Number(limit)),
             },
+            search: {
+                term: search ? String(search) : '',
+                recommendedDebounceMs: 300, // Recommend client-side debounce time
+                minSearchLength: 2, // Recommend minimum search term length
+            }
         });
     }
     catch (error) {
         console.error('Error fetching checkup centers:', error);
-        res.status(500).json({ error: 'Failed to fetch checkup centers' });
+        res.status(500).json({
+            error: 'Failed to fetch checkup centers',
+            message: error instanceof Error ? error.message : 'Unknown error occurred'
+        });
     }
 };
 exports.getCheckupCenters = getCheckupCenters;
@@ -102,28 +111,31 @@ exports.getCheckupCenterById = getCheckupCenterById;
 const createCheckupCenter = async (req, res) => {
     try {
         const { name, email, password, phone, addressLine, city, state, pin, country } = req.body;
-        if (!name || !email || !password || !phone) {
-            res.status(400).json({ error: 'Name, email, password, and phone are required' });
-            return;
-        }
-        const existingCenter = await db_1.default.checkupCenter.findUnique({ where: { email } });
+        // Check if email already exists
+        const existingCenter = await db_1.default.checkupCenter.findUnique({
+            where: { email },
+        });
         if (existingCenter) {
-            res.status(400).json({ error: 'A checkup center with this email already exists' });
+            res.status(400).json({ error: 'Email already registered' });
             return;
         }
-        const saltRounds = 10;
-        const hashedPassword = await bcryptjs_1.default.hash(password, saltRounds);
+        // Hash the password
+        const hashedPassword = await bcryptjs_1.default.hash(password, 10);
+        // Generate userId from name
+        const userId = (0, userIdGenerator_1.generateUserId)(name);
+        // Create the checkup center
         const checkupCenter = await db_1.default.checkupCenter.create({
             data: {
                 name,
                 email,
                 password: hashedPassword,
                 phone,
-                addressLine: addressLine || '',
-                city: city || '',
-                state: state || '',
-                pin: pin || '',
-                country: country || '',
+                addressLine,
+                city,
+                state,
+                pin,
+                country,
+                userId,
             },
         });
         const { password: _, ...centerWithoutPassword } = checkupCenter;

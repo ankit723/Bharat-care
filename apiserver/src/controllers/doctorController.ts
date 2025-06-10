@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../utils/db';
 import { DoctorCreationData, RequestWithBody } from '../types/index';
 import bcrypt from 'bcryptjs';
+import { generateUserId } from '../utils/userIdGenerator';
 
 // Get all doctors
 export const getDoctors = async (req: Request, res: Response): Promise<void> => {
@@ -61,10 +62,18 @@ export const getDoctors = async (req: Request, res: Response): Promise<void> => 
         total,
         pages: Math.ceil(total / Number(limit)),
       },
+      search: {
+        term: search ? String(search) : '',
+        recommendedDebounceMs: 300, // Recommend client-side debounce time
+        minSearchLength: 2, // Recommend minimum search term length
+      }
     });
   } catch (error) {
     console.error('Error fetching doctors:', error);
-    res.status(500).json({ error: 'Failed to fetch doctors' });
+    res.status(500).json({ 
+      error: 'Failed to fetch doctors',
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    });
   }
 };
 
@@ -168,6 +177,7 @@ export const createDoctor = async (
       state,
       pin,
       country,
+      specialization,
     } = req.body;
 
     // Validate required fields
@@ -194,6 +204,9 @@ export const createDoctor = async (
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+    // Generate userId from name
+    const userId = generateUserId(name);
+
     const doctor = await prisma.doctor.create({
       data: {
         name,
@@ -205,6 +218,8 @@ export const createDoctor = async (
         state: state || '',
         pin: pin || '',
         country: country || '',
+        specialization: specialization || 'CARDIOLOGY',
+        userId,
       },
       include: {
         clinic: true,

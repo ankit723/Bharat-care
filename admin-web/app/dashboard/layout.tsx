@@ -46,34 +46,49 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
           { href: '/dashboard/doctor', label: 'Overview' },
           { href: '/dashboard/doctor/patients', label: 'Patients' },
           { href: '/dashboard/doctor/medicine-scheduler', label: 'Medicine Scheduler' },
+          { href: '/dashboard/doctor/referrals', label: 'Referrals' },
           { href: '/dashboard/doctor/reviews', label: 'Reviews' },
           { href: '/dashboard/doctor/documents', label: 'Documents' },
+          { href: '/dashboard/doctor/rewards', label: 'Rewards' },
         ];
       case 'HOSPITAL':
         return [
           { href: '/dashboard/hospital', label: 'Overview' },
           { href: '/dashboard/hospital/doctors', label: 'Doctors' },
           { href: '/dashboard/hospital/patients', label: 'Patients' },
+          { href: '/dashboard/hospital/referrals', label: 'Referrals' },
           { href: '/dashboard/hospital/reviews', label: 'Reviews' },
+          { href: '/dashboard/hospital/rewards', label: 'Rewards' },
         ];
       case 'CLINIC':
         return [
           { href: '/dashboard/clinic', label: 'Overview' },
           { href: '/dashboard/clinic/doctors', label: 'Doctor' },
           { href: '/dashboard/clinic/reviews', label: 'Reviews' },
+          { href: '/dashboard/clinic/rewards', label: 'Rewards' },
         ];
       case 'MEDSTORE':
         return [
           { href: '/dashboard/medstore', label: 'Overview' },
           { href: '/dashboard/medstore/available-prescriptions', label: 'Available Prescriptions' },
           { href: '/dashboard/medstore/medicine-scheduler', label: 'Medicine Scheduler' },
+          { href: '/dashboard/medstore/referrals', label: 'Referrals' },
           { href: '/dashboard/medstore/reviews', label: 'Reviews' },
+          { href: '/dashboard/medstore/rewards', label: 'Rewards' },
         ];
       case 'CHECKUP_CENTER':
         return [
           { href: '/dashboard/checkup-center', label: 'Overview' },
           { href: '/dashboard/checkup-center/patients', label: 'Patients' },
           { href: '/dashboard/checkup-center/documents', label: 'Documents' },
+          { href: '/dashboard/checkup-center/referrals', label: 'Referrals' },
+          { href: '/dashboard/checkup-center/rewards', label: 'Rewards' },
+        ];
+      case 'ADMIN':
+        return [
+          { href: '/dashboard', label: 'Overview' },
+          { href: '/dashboard/admin/verifications', label: 'Verifications' },
+          { href: '/dashboard/admin/reward-settings', label: 'Reward Settings' },
         ];
       default:
         return [];
@@ -154,6 +169,13 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
             <div className="text-sm text-sidebar-foreground/70 capitalize">
               {user.role.replace('_', ' ')}
             </div>
+            {user.rewardPoints !== undefined && (
+              <div className="text-xs text-primary mt-1 flex items-center">
+                <span className="bg-primary/10 rounded-full px-2 py-0.5">
+                  {user.rewardPoints} points
+                </span>
+              </div>
+            )}
           </div>
           <div className={`text-center text-xl font-bold ${
             !sidebarOpen && !isMobile ? 'block' : 'hidden'
@@ -238,9 +260,19 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
             <div className="flex items-center gap-2">
               <div className="text-sm text-muted-foreground hidden sm:block">
                 Welcome, {user.name}
+                {user.rewardPoints !== undefined && (
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
+                    {user.rewardPoints} pts
+                  </span>
+                )}
               </div>
               <div className="text-sm text-muted-foreground sm:hidden">
                 {user.name.split(' ')[0]}
+                {user.rewardPoints !== undefined && (
+                  <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
+                    {user.rewardPoints}
+                  </span>
+                )}
               </div>
             </div>
           </div>

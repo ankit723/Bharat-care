@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/db';
 import { ClinicCreationData, RequestWithBody } from '../types/index';
+import bcrypt from 'bcryptjs';
+import { VerificationStatus } from '@prisma/client';
+import { generateUserId } from '../utils/userIdGenerator';
 
 export const getClinics = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -114,19 +117,26 @@ export const createClinic = async (req: RequestWithBody<ClinicCreationData>, res
       return;
     }
 
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Generate userId from name
+    const userId = generateUserId(name);
+
     const clinic = await prisma.clinic.create({
       data: {
         name,
         email,
-        password,
+        password: hashedPassword,
         phone,
         addressLine: addressLine || '',
         city: city || '',
         state: state || '',
         pin: pin || '',
         country: country || '',
-        verificationStatus: 'PENDING',
-        role: 'CLINIC'
+        verificationStatus: 'PENDING' as VerificationStatus,
+        role: 'CLINIC',
+        userId,
       },
       include: {
         doctor: {

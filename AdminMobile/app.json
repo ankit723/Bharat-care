@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "BharatCare Admin",
+    "slug": "bharat-care-admin",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "bharatcareadmin",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/logos/bharatcare-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#00d5b9"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#00d5b9"
+      },
+      "package": "com.techmorphers.bharatcare"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/logos/bharatcare-logo.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "40e0e936-db71-4642-ac60-78315dca0f1c"
+      }
+    },
+    "owner": "ankitcollab",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/40e0e936-db71-4642-ac60-78315dca0f1c"
+    },
+    "ios": {}
+  }
+}

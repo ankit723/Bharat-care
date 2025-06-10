@@ -12,7 +12,8 @@ import {
   medStoreRoutes,
   reviewRoutes,
   medDocumentRoutes,
-  medicineScheduleRoutes
+  medicineScheduleRoutes,
+  rewardRoutes
 } from './routes/index'
 import config from './config/index'
 import adminRoutes from './routes/adminRoutes'
@@ -41,6 +42,7 @@ app.use('/api/checkup-centers', checkupCentersRoutes)
 app.use('/api/med-documents', medDocumentRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/medicine-schedules', medicineScheduleRoutes)
+app.use('/api/rewards', rewardRoutes)
 
 // Add a ping endpoint for testing connectivity
 app.get('/api/ping', (req: Request, res: Response) => {

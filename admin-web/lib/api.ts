@@ -271,6 +271,7 @@ export interface VerifiableUser {
   verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
   // Add any other relevant fields you want to display, e.g., phone, address
   phone?: string;
+  userId?: string;
   createdAt?: string; 
 }
 
@@ -278,6 +279,7 @@ export interface PatientBasicInfo {
   id: string;
   name: string;
   email: string;
+  userId?: string;
   phone?: string;
   city?: string;
   state?: string;
@@ -391,5 +393,98 @@ export const medicineSchedulesApi = {
     apiClient.delete(`/medicine-schedules/${scheduleId}`),
 };
 
+// Rewards and Referrals Types
+export interface Referral {
+  id: string;
+  referrerId: string;
+  referrerRole: string;
+  referredId: string;
+  referredRole: string;
+  pointsAwarded: number;
+  status: 'PENDING' | 'COMPLETED' | 'REJECTED';
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  // Relations (will be populated when included in response)
+  referrerDoctor?: { name: string; userId: string };
+  referrerPatient?: { name: string; userId: string };
+  referrerHospital?: { name: string; userId: string };
+  referrerMedStore?: { name: string; userId: string };
+  referrerClinic?: { name: string; userId: string };
+  referrerCheckupCenter?: { name: string; userId: string };
+  referrerAdmin?: { name: string; userId: string };
+  referredDoctor?: { name: string; userId: string };
+  referredPatient?: { name: string; userId: string };
+  referredHospital?: { name: string; userId: string };
+  referredMedStore?: { name: string; userId: string };
+  referredClinic?: { name: string; userId: string };
+  referredCheckupCenter?: { name: string; userId: string };
+  // Service referral fields
+  patientId?: string;
+  patientDetails?: PatientBasicInfo;
+  serviceType?: 'DOCTOR_CONSULT' | 'MEDSTORE_PURCHASE' | 'CHECKUP_SERVICE';
+  notes?: string;
+  isServiceReferral?: boolean;
+}
+
+export interface RewardTransaction {
+  id: string;
+  userId: string;
+  userRole: string;
+  points: number;
+  transactionType: 'REFERRAL_REWARD' | 'ADMIN_ADJUSTMENT' | 'OTHER';
+  description: string;
+  referralId?: string;
+  createdAt: string;
+}
+
+export interface RewardSetting {
+  id: string;
+  key: string;
+  value: number;
+  description: string;
+  updatedById: string;
+  updatedBy?: { name: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Rewards API
+export const rewardsApi = {
+  // Referral endpoints
+  createReferral: (referredUserId: string, referredRole: string): Promise<AxiosResponse<Referral>> =>
+    apiClient.post('/rewards/referrals', { referredUserId, referredRole }),
+  
+  // Service referral endpoints (doctor to doctor, doctor to med store, etc.)
+  createServiceReferral: (data: {
+    referredId: string, 
+    referredRole: string, 
+    patientId: string,
+    serviceType: 'DOCTOR_CONSULT' | 'MEDSTORE_PURCHASE' | 'CHECKUP_SERVICE',
+    notes?: string
+  }): Promise<AxiosResponse<Referral>> =>
+    apiClient.post('/rewards/service-referrals', data),
+  
+  completeReferral: (referralId: string): Promise<AxiosResponse<Referral>> =>
+    apiClient.put(`/rewards/referrals/${referralId}/complete`),
+  
+  // Reward endpoints
+  getUserPoints: (): Promise<AxiosResponse<{ rewardPoints: number }>> =>
+    apiClient.get('/rewards/points'),
+  
+  getRewardHistory: (limit?: number, offset?: number): Promise<AxiosResponse<{ transactions: RewardTransaction[], totalCount: number }>> =>
+    apiClient.get('/rewards/history', { params: { limit, offset } }),
+  
+  getUserReferrals: (type: 'given' | 'received' = 'given', limit?: number, offset?: number): Promise<AxiosResponse<{ referrals: Referral[], totalCount: number }>> =>
+    apiClient.get('/rewards/referrals', { params: { type, limit, offset } }),
+  
+  // Admin endpoints
+  getRewardSettings: (): Promise<AxiosResponse<RewardSetting[]>> =>
+    apiClient.get('/rewards/settings'),
+  
+  updateRewardSetting: (key: string, value: number): Promise<AxiosResponse<RewardSetting>> =>
+    apiClient.put('/rewards/settings', { key, value }),
+};
+
 // Export the raw axios instance for custom calls
-export default apiClient; 
+export default apiClient;

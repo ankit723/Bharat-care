@@ -2,7 +2,7 @@ import { Inter } from 'next/font/google';
 import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
 import { Metadata } from 'next';
-import { X } from 'lucide-react';
+import PageTransition from '@/components/pageTransition';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -88,7 +88,7 @@ export default function RootLayout({
         <link rel="canonical" href={process.env.NEXT_PUBLIC_APP_URL} />
       </head>
       <body className={inter.className}>
-        {children}
+        <PageTransition>{children}</PageTransition>
         <Toaster />
       </body>
     </html>

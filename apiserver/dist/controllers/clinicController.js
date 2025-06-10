@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.removeDoctorFromClinic = exports.assignDoctorToClinic = exports.deleteClinic = exports.updateClinic = exports.createClinic = exports.getClinicById = exports.getClinics = void 0;
 const db_1 = __importDefault(require("../utils/db"));
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const userIdGenerator_1 = require("../utils/userIdGenerator");
 const getClinics = async (req, res) => {
     try {
         const { page = 1, limit = 10, search } = req.query;
@@ -110,11 +112,15 @@ const createClinic = async (req, res) => {
             });
             return;
         }
+        // Hash the password
+        const hashedPassword = await bcryptjs_1.default.hash(password, 10);
+        // Generate userId from name
+        const userId = (0, userIdGenerator_1.generateUserId)(name);
         const clinic = await db_1.default.clinic.create({
             data: {
                 name,
                 email,
-                password,
+                password: hashedPassword,
                 phone,
                 addressLine: addressLine || '',
                 city: city || '',
@@ -122,7 +128,8 @@ const createClinic = async (req, res) => {
                 pin: pin || '',
                 country: country || '',
                 verificationStatus: 'PENDING',
-                role: 'CLINIC'
+                role: 'CLINIC',
+                userId,
             },
             include: {
                 doctor: {

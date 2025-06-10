@@ -2,7 +2,8 @@ import { Request, Response } from 'express';
 import prisma from '../utils/db'; // Use shared prisma instance
 import { CheckupCenterCreateData, CheckupCenterUpdateData } from '../types'; // Assuming types are defined
 import bcrypt from 'bcryptjs';
-import { Role } from '@prisma/client';
+import { Role, VerificationStatus } from '@prisma/client';
+import { generateUserId } from '../utils/userIdGenerator';
 
 // Get all checkup centers with pagination and search
 export const getCheckupCenters = async (req: Request, res: Response): Promise<void> => {
@@ -45,10 +46,18 @@ export const getCheckupCenters = async (req: Request, res: Response): Promise<vo
         total,
         pages: Math.ceil(total / Number(limit)),
       },
+      search: {
+        term: search ? String(search) : '',
+        recommendedDebounceMs: 300, // Recommend client-side debounce time
+        minSearchLength: 2, // Recommend minimum search term length
+      }
     });
   } catch (error) {
     console.error('Error fetching checkup centers:', error);
-    res.status(500).json({ error: 'Failed to fetch checkup centers' });
+    res.status(500).json({ 
+      error: 'Failed to fetch checkup centers',
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    });
   }
 };
 
@@ -104,33 +113,37 @@ export const getCheckupCenterById = async (req: Request, res: Response): Promise
 // Create a new checkup center
 export const createCheckupCenter = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, email, password, phone, addressLine, city, state, pin, country } = req.body as CheckupCenterCreateData;
+    const { name, email, password, phone, addressLine, city, state, pin, country } = req.body;
 
-    if (!name || !email || !password || !phone) {
-        res.status(400).json({ error: 'Name, email, password, and phone are required' });
-        return;
-    }
+    // Check if email already exists
+    const existingCenter = await prisma.checkupCenter.findUnique({
+      where: { email },
+    });
 
-    const existingCenter = await prisma.checkupCenter.findUnique({ where: { email } });
     if (existingCenter) {
-        res.status(400).json({ error: 'A checkup center with this email already exists' });
-        return;
+      res.status(400).json({ error: 'Email already registered' });
+      return;
     }
 
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Generate userId from name
+    const userId = generateUserId(name);
+
+    // Create the checkup center
     const checkupCenter = await prisma.checkupCenter.create({
       data: {
         name,
         email,
         password: hashedPassword,
         phone,
-        addressLine: addressLine || '',
-        city: city || '',
-        state: state || '',
-        pin: pin || '',
-        country: country || '',
+        addressLine,
+        city,
+        state,
+        pin,
+        country,
+        userId,
       },
     });
     const { password: _, ...centerWithoutPassword } = checkupCenter;

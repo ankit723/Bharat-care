@@ -17,6 +17,8 @@ interface User {
   role: string;
   phone: string;
   verificationStatus: VerificationStatus;
+  rewardPoints?: number;
+  userId?: string;
 }
 
 interface AuthState {

@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.updatePatientNextVisit = exports.removePatientFromDoctor = exports.assignPatientToDoctor = exports.assignDoctorToHospital = exports.deleteDoctor = exports.updateDoctor = exports.createDoctor = exports.getDoctorById = exports.getDoctors = void 0;
 const db_1 = __importDefault(require("../utils/db"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const userIdGenerator_1 = require("../utils/userIdGenerator");
 // Get all doctors
 const getDoctors = async (req, res) => {
     try {
@@ -60,11 +61,19 @@ const getDoctors = async (req, res) => {
                 total,
                 pages: Math.ceil(total / Number(limit)),
             },
+            search: {
+                term: search ? String(search) : '',
+                recommendedDebounceMs: 300, // Recommend client-side debounce time
+                minSearchLength: 2, // Recommend minimum search term length
+            }
         });
     }
     catch (error) {
         console.error('Error fetching doctors:', error);
-        res.status(500).json({ error: 'Failed to fetch doctors' });
+        res.status(500).json({
+            error: 'Failed to fetch doctors',
+            message: error instanceof Error ? error.message : 'Unknown error occurred'
+        });
     }
 };
 exports.getDoctors = getDoctors;
@@ -151,7 +160,7 @@ exports.getDoctorById = getDoctorById;
 // Create a new doctor
 const createDoctor = async (req, res) => {
     try {
-        const { name, email, password, phone, addressLine, city, state, pin, country, } = req.body;
+        const { name, email, password, phone, addressLine, city, state, pin, country, specialization, } = req.body;
         // Validate required fields
         if (!name || !email || !password || !phone) {
             res.status(400).json({
@@ -172,6 +181,8 @@ const createDoctor = async (req, res) => {
         // Hash password
         const saltRounds = 10;
         const hashedPassword = await bcryptjs_1.default.hash(password, saltRounds);
+        // Generate userId from name
+        const userId = (0, userIdGenerator_1.generateUserId)(name);
         const doctor = await db_1.default.doctor.create({
             data: {
                 name,
@@ -183,6 +194,8 @@ const createDoctor = async (req, res) => {
                 state: state || '',
                 pin: pin || '',
                 country: country || '',
+                specialization: specialization || 'CARDIOLOGY',
+                userId,
             },
             include: {
                 clinic: true,

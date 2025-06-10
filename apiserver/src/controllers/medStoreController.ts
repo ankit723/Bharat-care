@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/db'; // Changed to shared prisma instance
 import bcrypt from 'bcryptjs';
+import { VerificationStatus } from '@prisma/client';
+import { generateUserId } from '../utils/userIdGenerator';
 
 // GET /api/medstores - Get all med stores
 export const getMedStores = async (req: Request, res: Response): Promise<void> => {
@@ -43,10 +45,18 @@ export const getMedStores = async (req: Request, res: Response): Promise<void> =
         total,
         pages: Math.ceil(total / Number(limit)),
       },
+      search: {
+        term: search ? String(search) : '',
+        recommendedDebounceMs: 300, // Recommend client-side debounce time
+        minSearchLength: 2, // Recommend minimum search term length
+      }
     });
   } catch (error) {
     console.error('Error fetching med stores:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Failed to fetch med stores',
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    });
   }
 };
 
@@ -126,6 +136,9 @@ export const createMedStore = async (req: Request, res: Response): Promise<void>
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+    // Generate userId from name
+    const userId = generateUserId(name);
+
     // Create med store
     const medStore = await prisma.medStore.create({
       data: {
@@ -138,8 +151,9 @@ export const createMedStore = async (req: Request, res: Response): Promise<void>
         state: state || '',
         pin: pin || '',
         country: country || '',
-        verificationStatus: 'PENDING',
-        role: 'MEDSTORE'
+        verificationStatus: 'PENDING' as VerificationStatus,
+        role: 'MEDSTORE',
+        userId,
       },
     });
 

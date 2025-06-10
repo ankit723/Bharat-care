@@ -11,8 +11,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { PlusCircle, Edit3, Trash2, Loader2, CalendarDays, Pill, Users, AlertCircle, ListChecks, Plus, X } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, Loader2, CalendarDays, Pill, Users, AlertCircle, ListChecks, Plus, X, Search } from 'lucide-react';
 import { format } from 'date-fns';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 // Helper to create a new blank medicine item
 const createNewMedicineItem = (): ScheduledMedicineItemData => ({
@@ -35,6 +38,12 @@ const DoctorMedicineSchedulerPage = () => {
   // Updated currentSchedule to include items array
   const [currentSchedule, setCurrentSchedule] = useState<Partial<Omit<MedicineScheduleCreateData, 'items'>> & { id?: string; items: ScheduledMedicineItemData[] }>({ items: [createNewMedicineItem()] });
   const [selectedPatientId, setSelectedPatientId] = useState<string | undefined>(undefined);
+  
+  // Add state for patient search
+  const [patientSearchTerm, setPatientSearchTerm] = useState('');
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [filteredPatientsDisplay, setFilteredPatientsDisplay] = useState<PatientBasicInfo[]>([]);
+  const [isSearchingPatients, setIsSearchingPatients] = useState(false);
 
   const fetchSchedules = useCallback(async () => {
     if (!user || user.role !== 'DOCTOR') return;
@@ -55,8 +64,10 @@ const DoctorMedicineSchedulerPage = () => {
   const fetchPatients = useCallback(async () => {
     if (!user || user.role !== 'DOCTOR') return;
     try {
-      const response = await patientsApi.getAll({ doctorId: user.id }); 
-      setPatients(response.data || []); 
+      const response = await patientsApi.getAll({ doctorId: user.id });
+      // Handle the new API response format
+      const patientsData = response.data && response.data.data ? response.data.data : response.data;
+      setPatients(patientsData || []); 
     } catch (err) {
       console.error('Error fetching patients:', err);
       toast.error('Failed to load patients for selection.');
@@ -67,6 +78,46 @@ const DoctorMedicineSchedulerPage = () => {
     fetchSchedules();
     fetchPatients();
   }, [fetchSchedules, fetchPatients]);
+
+  // Effect to update filteredPatientsDisplay when patients or patientSearchTerm changes
+  useEffect(() => {
+    const searchPatients = async () => {
+      const trimmedSearchTerm = patientSearchTerm.trim();
+      if (!trimmedSearchTerm) {
+        setFilteredPatientsDisplay(patients);
+        return;
+      }
+      
+      setIsSearchingPatients(true);
+      
+      try {
+        // For more complex search, we could call an API endpoint instead
+        const searchTermLower = trimmedSearchTerm.toLowerCase();
+        const result = patients.filter(patient => 
+          patient.name.toLowerCase().includes(searchTermLower) ||
+          patient.email.toLowerCase().includes(searchTermLower) ||
+          (patient.userId && patient.userId.toLowerCase().includes(searchTermLower)) ||
+          (patient.phone && patient.phone.toLowerCase().includes(searchTermLower))
+        );
+        setFilteredPatientsDisplay(result);
+      } catch (error) {
+        console.error('Error searching patients:', error);
+      } finally {
+        setIsSearchingPatients(false);
+      }
+    };
+    
+    // Add a small delay to avoid unnecessary filtering while typing
+    const timer = setTimeout(() => {
+      searchPatients();
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [patients, patientSearchTerm]);
+
+  useEffect(() => {
+    console.log('filteredPatientsDisplay', filteredPatientsDisplay);
+  }, [filteredPatientsDisplay]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -79,10 +130,6 @@ const DoctorMedicineSchedulerPage = () => {
     const updatedItems = [...currentSchedule.items];
     updatedItems[index] = { ...updatedItems[index], [name]: name === 'timesPerDay' || name === 'gapBetweenDays' ? parseInt(value) || 0 : value };
     setCurrentSchedule(prev => ({ ...prev, items: updatedItems }));
-  };
-
-  const handleSelectChange = (name: string, value: string | number) => {
-    setCurrentSchedule(prev => ({ ...prev, [name]: value }));
   };
 
   const addMedicineItem = () => {
@@ -273,7 +320,7 @@ const DoctorMedicineSchedulerPage = () => {
               <TableBody>
                 {schedules.map((schedule) => (
                   <TableRow key={schedule.id}>
-                    <TableCell>{schedule.patient?.name || schedule.patientId}</TableCell>
+                    <TableCell className="font-medium text-gray-800">{schedule.patient?.name || schedule.patientId}</TableCell>
                     <TableCell>{schedule.items?.length || 0} item(s)</TableCell>
                     <TableCell>{format(new Date(schedule.startDate), 'dd MMM yyyy')}</TableCell>
                     <TableCell>{schedule.numberOfDays} days</TableCell>
@@ -306,23 +353,82 @@ const DoctorMedicineSchedulerPage = () => {
           <form onSubmit={handleSubmit} className="space-y-6 p-1">
             <div>
               <label htmlFor="patientId" className="block text-sm font-medium text-gray-700 mb-1">Patient</label>
-              <Select 
-                value={selectedPatientId}
-                onValueChange={(value) => setSelectedPatientId(value)}
-                disabled={!!currentSchedule.id} // Disable if editing, patient shouldn't change
-              >
-                <SelectTrigger id="patientId">
-                  <SelectValue placeholder="Select a patient..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {patients.map(patient => (
-                    <SelectItem key={patient.id} value={patient.id}>
-                      {patient.name} ({patient.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!selectedPatientId && <p className="text-xs text-red-500 mt-1">Patient selection is required.</p>}
+              {!currentSchedule.id ? (
+                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={popoverOpen}
+                      className="w-full justify-between"
+                    >
+                      {selectedPatientId
+                        ? patients.find((patient) => patient.id === selectedPatientId)?.name
+                        : "Select patient..."}
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <div className="flex items-center border-b px-3">
+                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                        <input
+                          className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                          placeholder="Search patients..." 
+                          value={patientSearchTerm}
+                          onChange={(e) => setPatientSearchTerm(e.target.value)}
+                        />
+                      </div>
+                      {isSearchingPatients ? (
+                        <div className="flex justify-center items-center py-6">
+                          <Loader2 className="h-4 w-4 animate-spin text-primary mr-2" />
+                          <span className="text-sm text-muted-foreground">Searching...</span>
+                        </div>
+                      ) : filteredPatientsDisplay.length === 0 ? (
+                        <CommandEmpty>No patient found.</CommandEmpty>
+                      ) : (
+                        <CommandGroup className="max-h-64 overflow-auto">
+                          {filteredPatientsDisplay.map((patient) => (
+                            <CommandItem
+                              key={patient.id}
+                              onSelect={() => {
+                                setSelectedPatientId(patient.id);
+                                setPopoverOpen(false);
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <div className="flex flex-col">
+                                <span className="font-medium">{patient.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {patient.userId ? `${patient.userId} • ` : ''}{patient.email}
+                                  {patient.phone ? ` • ${patient.phone}` : ''}
+                                </span>
+                              </div>
+                              <span
+                                className={cn(
+                                  "ml-auto h-4 w-4",
+                                  selectedPatientId === patient.id
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              >
+                                ✓
+                              </span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      )}
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <div className="p-2 border rounded-md bg-muted">
+                  {patients.find(p => p.id === selectedPatientId)?.name || selectedPatientId}
+                </div>
+              )}
+              {!selectedPatientId && !currentSchedule.id && (
+                <p className="text-xs text-red-500 mt-1">Patient selection is required.</p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

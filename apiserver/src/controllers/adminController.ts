@@ -7,6 +7,7 @@ interface VerifiableEntity {
   name: string;
   email: string;
   phone?: string | null;
+  userId?: string | null;
   role: string; // User-friendly role name
   entityType: string; // Model name for API
   verificationStatus: VerificationStatus;
@@ -26,6 +27,7 @@ const mapToVerifiableEntity = (entity: any, entityType: string, userFriendlyRole
     name: entity.name,
     email: entity.email,
     phone: entity.phone || null,
+    userId: entity.userId || null,
     role: userFriendlyRole,
     entityType: entityType,
     verificationStatus: entity.verificationStatus as VerificationStatus,
@@ -37,23 +39,23 @@ export const getPendingVerifications = async (req: Request, res: Response): Prom
   try {
     const pendingDoctors = await prisma.doctor.findMany({
       where: { verificationStatus: 'PENDING' },
-      select: { id: true, name: true, email: true, phone: true, createdAt: true, verificationStatus: true },
+      select: { id: true, name: true, email: true, phone: true, userId: true, createdAt: true, verificationStatus: true },
     });
     const pendingClinics = await prisma.clinic.findMany({
       where: { verificationStatus: 'PENDING' },
-      select: { id: true, name: true, email: true, phone: true, createdAt: true, verificationStatus: true },
+      select: { id: true, name: true, email: true, phone: true, userId: true, createdAt: true, verificationStatus: true },
     });
     const pendingHospitals = await prisma.hospital.findMany({
       where: { verificationStatus: 'PENDING' },
-      select: { id: true, name: true, email: true, phone: true, createdAt: true, verificationStatus: true },
+      select: { id: true, name: true, email: true, phone: true, userId: true, createdAt: true, verificationStatus: true },
     });
     const pendingCheckupCenters = await prisma.checkupCenter.findMany({
       where: { verificationStatus: 'PENDING' },
-      select: { id: true, name: true, email: true, phone: true, createdAt: true, verificationStatus: true },
+      select: { id: true, name: true, email: true, phone: true, userId: true, createdAt: true, verificationStatus: true },
     });
     const pendingMedStores = await prisma.medStore.findMany({
       where: { verificationStatus: 'PENDING' },
-      select: { id: true, name: true, email: true, phone: true, createdAt: true, verificationStatus: true },
+      select: { id: true, name: true, email: true, phone: true, userId: true, createdAt: true, verificationStatus: true },
     });
 
     const allPending: VerifiableEntity[] = [
