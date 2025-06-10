@@ -358,7 +358,9 @@ const RewardsComponent = () => {
       case 'CHECKUP_CENTER':
         return referral[`${prefix}CheckupCenter`]?.name || 'Unknown Checkup Center';
       case 'ADMIN':
-        return referral[`${prefix}Admin`]?.name || 'Admin';
+        return type === 'referrer' ? 
+          (referral.referrerAdmin?.name || 'Admin') : 
+          'Admin';
       default:
         return 'Unknown';
     }
