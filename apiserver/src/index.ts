@@ -17,6 +17,9 @@ import {
 } from './routes/index'
 import config from './config/index'
 import adminRoutes from './routes/adminRoutes'
+import homeRoutes from './routes/homeRoutes'
+import appointmentRoutes from './routes/appointmentRoutes'
+import searchRoutes from './routes/searchRoutes'
 
 const app = express()
 
@@ -43,6 +46,11 @@ app.use('/api/med-documents', medDocumentRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/medicine-schedules', medicineScheduleRoutes)
 app.use('/api/rewards', rewardRoutes)
+
+// New patient mobile app routes
+app.use('/api/home', homeRoutes)
+app.use('/api/appointments', appointmentRoutes)
+app.use('/api/search', searchRoutes)
 
 // Add a ping endpoint for testing connectivity
 app.get('/api/ping', (req: Request, res: Response) => {

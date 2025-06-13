@@ -39,26 +39,30 @@ const generateCommonFields = (role: string) => {
   const name = role === 'DOCTOR' ? `Dr. ${faker.person.fullName()}` : faker.person.fullName();
   return {
     name,
-    email: faker.internet.email().toLowerCase(),
-    password: hashSync('0000', 10),
-    phone: faker.string.numeric(10),
+  email: faker.internet.email().toLowerCase(),
+  password: hashSync('0000', 10),
+  phone: faker.string.numeric(10),
     userId: generateUserId(name), // Add userId using the generator
-    ...generateAddress(),
+  ...generateAddress(),
   };
 };
 
 async function main() {
   console.log('Starting seeding...');
 
-  // Clear existing data
+  // Clear existing data in correct order to handle foreign key constraints
   await prisma.$transaction([
+    // Delete dependent records first
     prisma.rewardSetting.deleteMany(),
     prisma.rewardTransaction.deleteMany(),
     prisma.referral.deleteMany(),
     prisma.review.deleteMany(),
     prisma.medDocument.deleteMany(),
+    prisma.doctorNextVisit.deleteMany(), // Add this
+    prisma.checkupCenterNextVisit.deleteMany(), // Add this
     prisma.scheduledMedicineItem.deleteMany(),
     prisma.medicineSchedule.deleteMany(),
+    // Then delete main entities
     prisma.patient.deleteMany(),
     prisma.doctor.deleteMany(),
     prisma.clinic.deleteMany(),

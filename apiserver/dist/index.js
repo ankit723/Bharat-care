@@ -9,6 +9,9 @@ const cors_1 = __importDefault(require("cors"));
 const index_1 = require("./routes/index");
 const index_2 = __importDefault(require("./config/index"));
 const adminRoutes_1 = __importDefault(require("./routes/adminRoutes"));
+const homeRoutes_1 = __importDefault(require("./routes/homeRoutes"));
+const appointmentRoutes_1 = __importDefault(require("./routes/appointmentRoutes"));
+const searchRoutes_1 = __importDefault(require("./routes/searchRoutes"));
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
 // Configure CORS with more specific options
@@ -30,6 +33,10 @@ app.use('/api/med-documents', index_1.medDocumentRoutes);
 app.use('/api/admin', adminRoutes_1.default);
 app.use('/api/medicine-schedules', index_1.medicineScheduleRoutes);
 app.use('/api/rewards', index_1.rewardRoutes);
+// New patient mobile app routes
+app.use('/api/home', homeRoutes_1.default);
+app.use('/api/appointments', appointmentRoutes_1.default);
+app.use('/api/search', searchRoutes_1.default);
 // Add a ping endpoint for testing connectivity
 app.get('/api/ping', (req, res) => {
     // Log request details

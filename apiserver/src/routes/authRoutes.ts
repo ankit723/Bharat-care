@@ -10,5 +10,6 @@ router.post('/register', register);
 
 // Protected routes
 router.get('/me', authenticate, getCurrentUser);
+router.get('/current-user', authenticate, getCurrentUser);
 
 export default router; 

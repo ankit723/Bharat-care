@@ -122,7 +122,7 @@ export const createCheckupCenter = async (req: Request, res: Response): Promise<
 
     if (existingCenter) {
       res.status(400).json({ error: 'Email already registered' });
-      return;
+        return;
     }
 
     // Hash the password

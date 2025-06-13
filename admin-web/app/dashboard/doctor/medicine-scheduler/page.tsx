@@ -64,7 +64,7 @@ const DoctorMedicineSchedulerPage = () => {
   const fetchPatients = useCallback(async () => {
     if (!user || user.role !== 'DOCTOR') return;
     try {
-      const response = await patientsApi.getAll({ doctorId: user.id });
+      const response = await patientsApi.getAll({ doctorId: user.id }); 
       // Handle the new API response format
       const patientsData = response.data && response.data.data ? response.data.data : response.data;
       setPatients(patientsData || []); 
@@ -415,7 +415,7 @@ const DoctorMedicineSchedulerPage = () => {
                                 ✓
                               </span>
                             </CommandItem>
-                          ))}
+                  ))}
                         </CommandGroup>
                       )}
                     </Command>

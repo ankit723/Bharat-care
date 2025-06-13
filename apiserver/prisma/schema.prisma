@@ -46,6 +46,7 @@ enum Specialization {
 
 enum TransactionType {
   REFERRAL_REWARD
+  MEDICINE_COMPLIANCE
   ADMIN_ADJUSTMENT
   OTHER
 }
@@ -309,10 +310,38 @@ model ScheduledMedicineItem {
   gapBetweenDays      Int       // 0 for daily, 1 for every other day, etc., for this specific medicine
   notes               String?   // Optional special instructions for this medicine
 
+  // New relation to reminder times
+  reminderTimes       MedicineReminderTime[]
+
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
   @@index([medicineScheduleId])
+}
+
+model MedicineReminderTime {
+  id                    String    @id @default(uuid())
+  
+  medicineItemId        String
+  medicineItem          ScheduledMedicineItem @relation(fields: [medicineItemId], references: [id], onDelete: Cascade)
+  
+  patientId             String
+  patient               Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  reminderTime          String    // Time in HH:MM format (e.g., "08:30", "14:00", "20:15")
+  isActive              Boolean   @default(true)
+  
+  // Tracking fields
+  lastTakenAt           DateTime?
+  consecutiveDaysTaken  Int       @default(0)
+  totalTimesTaken       Int       @default(0)
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  @@index([medicineItemId])
+  @@index([patientId])
+  @@index([patientId, isActive])
 }
 
 model Patient {
@@ -345,6 +374,9 @@ model Patient {
   checkupCenterNextVisit checkupCenterNextVisit[]
 
   medicineSchedules    MedicineSchedule[] // Relation to medicine schedules
+  
+  // New relation to medicine reminder times
+  medicineReminderTimes MedicineReminderTime[]
 
   // Referral relationships
   referralsGiven     Referral[] @relation("ReferrerPatient")

@@ -1,0 +1,12 @@
+# This is a placeholder for the alarm sound file
+# Replace this with an actual alarm.wav audio file
+# The file should be a short, attention-grabbing alarm sound
+# Recommended format: WAV, 16-bit, 44.1kHz
+# Duration: 2-5 seconds (will be looped by the notification service)
+
+# You can download free alarm sounds from:
+# - freesound.org
+# - zapsplat.com
+# - soundbible.com
+
+# Or use a simple beep/alert sound that's recognizable and not too harsh 

@@ -19,7 +19,7 @@ declare global {
 // In a real application, you would validate JWT tokens or other auth mechanisms
 export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization;
-  console.log(authHeader);
+  
   if (!authHeader) {
     res.status(401).json({ error: 'Authorization header is required' });
     return;
@@ -41,7 +41,6 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
       role: string;
       verificationStatus: string;
     };
-    console.log("decoded",decoded);
     
     // Set user information in request
     req.user = {

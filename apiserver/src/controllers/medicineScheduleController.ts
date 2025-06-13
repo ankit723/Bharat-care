@@ -288,4 +288,85 @@ export const deleteMedicineSchedule = async (req: AuthenticatedRequest, res: Res
     console.error('Error deleting medicine schedule:', error);
     res.status(500).json({ error: 'Failed to delete schedule' });
   }
+};
+
+// Confirm medicine taken by patient
+export const confirmMedicine = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { medicineItemId, takenAt } = req.body;
+    const patientId = req.user?.userId;
+    const userRole = req.user?.role;
+
+    if (!patientId || userRole !== Role.PATIENT) {
+      res.status(403).json({ error: 'Only patients can confirm medicine intake' });
+      return;
+    }
+
+    if (!medicineItemId || !takenAt) {
+      res.status(400).json({ error: 'Medicine item ID and taken time are required' });
+      return;
+    }
+
+    // Find the medicine item and verify it belongs to a schedule for this patient
+    const medicineItem = await prisma.scheduledMedicineItem.findUnique({
+      where: { id: medicineItemId },
+      include: {
+        medicineSchedule: true
+      }
+    });
+
+    if (!medicineItem) {
+      res.status(404).json({ error: 'Medicine item not found' });
+      return;
+    }
+
+    if (medicineItem.medicineSchedule.patientId !== patientId) {
+      res.status(403).json({ error: 'This medicine is not prescribed to you' });
+      return;
+    }
+
+    // Check if the medicine schedule is still active
+    const now = new Date();
+    const scheduleEndDate = new Date(medicineItem.medicineSchedule.startDate);
+    scheduleEndDate.setDate(scheduleEndDate.getDate() + medicineItem.medicineSchedule.numberOfDays);
+
+    if (now > scheduleEndDate) {
+      res.status(400).json({ error: 'This medicine schedule has already ended' });
+      return;
+    }
+
+    // Check if taken within grace period (30 minutes)
+    const takenTime = new Date(takenAt);
+    const timeDiff = Math.abs(now.getTime() - takenTime.getTime());
+    const gracePeriodMs = 30 * 60 * 1000; // 30 minutes
+
+    if (timeDiff > gracePeriodMs) {
+      res.status(400).json({ error: 'Medicine confirmation is outside the grace period' });
+      return;
+    }
+
+    // Award reward points
+    const pointsAwarded = 5; // Default points per medicine
+
+    // Import RewardManager dynamically to avoid circular dependencies
+    const { RewardManager } = await import('../utils/rewardManager');
+    
+    await RewardManager.awardPoints(
+      patientId,
+      Role.PATIENT,
+      pointsAwarded,
+      'MEDICINE_COMPLIANCE' as any,
+      `Medicine taken on time: ${medicineItem.medicineName}`
+    );
+
+    res.status(200).json({ 
+      success: true, 
+      pointsAwarded,
+      message: `Successfully confirmed ${medicineItem.medicineName}. You earned ${pointsAwarded} reward points!`
+    });
+
+  } catch (error) {
+    console.error('Error confirming medicine:', error);
+    res.status(500).json({ error: 'Failed to confirm medicine intake' });
+  }
 }; 

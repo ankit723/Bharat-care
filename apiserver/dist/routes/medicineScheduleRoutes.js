@@ -9,17 +9,22 @@ const authMiddleware_1 = require("../middleware/authMiddleware"); // Assuming au
 const router = express_1.default.Router();
 // Create a new medicine schedule (Doctors and MedStores)
 router.post('/', authMiddleware_1.authenticate, (0, authMiddleware_1.authorize)(['DOCTOR', 'MEDSTORE']), medicineScheduleController_1.createMedicineSchedule);
-// Get all schedules for a specific patient (Patient for self, any Doctor, any MedStore, Admin)
-// More specific authorization handled in controller for now
+// Get schedules for a specific patient
 router.get('/patient/:patientId', authMiddleware_1.authenticate, medicineScheduleController_1.getSchedulesForPatient);
+// Get schedules for logged-in patient
+router.get('/patient', authMiddleware_1.authenticate, (0, authMiddleware_1.authorize)(['PATIENT']), async (req, res) => {
+    // Redirect to getSchedulesForPatient with the patient's own ID
+    req.params.patientId = req.user?.userId || '';
+    return (0, medicineScheduleController_1.getSchedulesForPatient)(req, res);
+});
 // Get schedules created by the logged-in Doctor
 router.get('/doctor/mine', authMiddleware_1.authenticate, (0, authMiddleware_1.authorize)(['DOCTOR']), medicineScheduleController_1.getSchedulesCreatedByDoctor);
 // Get schedules created by the logged-in MedStore
 router.get('/medstore/mine', authMiddleware_1.authenticate, (0, authMiddleware_1.authorize)(['MEDSTORE']), medicineScheduleController_1.getSchedulesCreatedByMedStore);
-// Update a medicine schedule (Original scheduler or Admin)
-// Specific authorization handled in controller
+// Confirm medicine taken by patient
+router.post('/confirm', authMiddleware_1.authenticate, (0, authMiddleware_1.authorize)(['PATIENT']), medicineScheduleController_1.confirmMedicine);
+// Update a medicine schedule
 router.put('/:scheduleId', authMiddleware_1.authenticate, medicineScheduleController_1.updateMedicineSchedule);
-// Delete a medicine schedule (Original scheduler or Admin)
-// Specific authorization handled in controller
+// Delete a medicine schedule
 router.delete('/:scheduleId', authMiddleware_1.authenticate, medicineScheduleController_1.deleteMedicineSchedule);
 exports.default = router;

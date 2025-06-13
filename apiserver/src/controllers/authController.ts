@@ -80,18 +80,21 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const register = async (req: Request, res: Response): Promise<void> => {
+  console.log('Registering user', req.body);
   try {
     const { 
       name, email, password, role, phone, 
       addressLine, city, state, pin, country} = req.body;
 
     if (!name || !email || !password || !role || !phone) {
+      console.log('Required fields are missing', req.body);
       res.status(400).json({ error: 'Required fields are missing' });
       return;
     }
 
     const normalizedRequestRole = role.toUpperCase() as Role;
     if (!Object.values(Role).includes(normalizedRequestRole)) {
+        console.log('Invalid role specified', req.body);
         res.status(400).json({ error: `Invalid role specified: ${role}. Valid roles are: ${Object.values(Role).join(', ')}` });
       return;
     }
@@ -106,6 +109,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       await prisma.checkupCenter.findUnique({ where: { email } });
 
     if (existingUserByEmail) {
+      console.log('Email is already registered', req.body);
       res.status(400).json({ error: 'Email is already registered' });
       return;
     }
@@ -154,6 +158,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         newUser = await prisma.admin.create({ data: { ...basicUserData } });
         break;
         default:
+        console.log('Invalid role', req.body);
         res.status(400).json({ error: 'Invalid role' });
         return;
     }

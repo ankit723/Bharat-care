@@ -379,7 +379,7 @@ const DoctorPatientsPage = () => {
                   onChange={(e) => setMainSearchTerm(e.target.value)}
                   className="pl-10"
                 />
-              </div>
+                    </div>
             </div>
 
             {/* Desktop Table View */}
