@@ -8,6 +8,8 @@ import {
   RefreshControl,
   Alert,
   Linking,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +36,9 @@ export default function CalendarScreen() {
   const [nextVisits, setNextVisits] = useState<NextVisit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [adminUserId, setAdminUserId] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
 
   useEffect(() => {
     fetchAppointments();
@@ -44,21 +49,31 @@ export default function CalendarScreen() {
       setIsLoading(true);
       const profile = await apiService.getProfile();
       
-      const allVisits: NextVisit[] = [
-        ...(profile.doctorNextVisit || []).map((visit: any) => ({
-          id: visit.id,
-          nextVisit: visit.nextVisit,
-          doctor: visit.doctor,
-          type: 'doctor'
-        })),
-        ...(profile.checkupCenterNextVisit || []).map((visit: any) => ({
-          id: visit.id,
-          nextVisit: visit.nextVisit,
-          checkupCenter: visit.checkupCenter,
-          type: 'checkupCenter'
-        }))
-      ];
-
+      const allVisits: NextVisit[] = [];
+      
+      // Add doctor visits - use type assertion since the API includes these properties
+      const profileWithVisits = profile as any;
+      if (profileWithVisits.doctorNextVisit && Array.isArray(profileWithVisits.doctorNextVisit)) {
+        profileWithVisits.doctorNextVisit.forEach((visit: any) => {
+          allVisits.push({
+            id: visit.id,
+            nextVisit: visit.nextVisit,
+            doctor: visit.doctor,
+          });
+        });
+      }
+      
+      // Add checkup center visits
+      if (profileWithVisits.checkupCenterNextVisit && Array.isArray(profileWithVisits.checkupCenterNextVisit)) {
+        profileWithVisits.checkupCenterNextVisit.forEach((visit: any) => {
+          allVisits.push({
+            id: visit.id,
+            nextVisit: visit.nextVisit,
+            checkupCenter: visit.checkupCenter,
+          });
+        });
+      }
+      
       // Sort by date
       allVisits.sort((a, b) => new Date(a.nextVisit).getTime() - new Date(b.nextVisit).getTime());
       
@@ -217,6 +232,37 @@ export default function CalendarScreen() {
     );
   };
 
+  const handleAssignToAdmin = async () => {
+    if (!adminUserId.trim()) {
+      Alert.alert('Error', 'Please enter a healthcare provider user ID');
+      return;
+    }
+
+    setIsAssigning(true);
+    try {
+      // Call API to assign patient to healthcare provider
+      const response = await apiService.assignPatientToProvider(adminUserId.trim());
+      
+      Alert.alert(
+        'Success! 🎉',
+        response.message || 'You have been successfully assigned to the healthcare provider. They can now manage your appointments and medical records.',
+        [{ text: 'OK', onPress: () => {
+          setShowAssignModal(false);
+          setAdminUserId('');
+        }}]
+      );
+    } catch (error: any) {
+      console.error('Error assigning to healthcare provider:', error);
+      Alert.alert(
+        'Assignment Failed',
+        error.response?.data?.error || 'Failed to assign to healthcare provider. Please check the user ID and try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <View className="flex-1 justify-center items-center bg-gray-50">
@@ -245,11 +291,12 @@ export default function CalendarScreen() {
               {upcomingVisits.length} upcoming appointment{upcomingVisits.length !== 1 ? 's' : ''}
             </Text>
           </View>
-          <TouchableOpacity 
+          {/* <TouchableOpacity 
             className="w-12 h-12 bg-white/20 rounded-full items-center justify-center"
+            onPress={() => setShowAssignModal(true)}
           >
             <Ionicons name="add" size={24} color="white" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </View>
 
@@ -313,6 +360,73 @@ export default function CalendarScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Assign to Healthcare Provider Modal */}
+      <Modal
+        visible={showAssignModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowAssignModal(false)}
+      >
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-white rounded-t-3xl p-6">
+            <View className="flex-row items-center justify-between mb-6">
+              <Text className="text-xl font-bold text-gray-800">Assign to Healthcare Provider</Text>
+              <TouchableOpacity
+                onPress={() => setShowAssignModal(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center"
+              >
+                <Ionicons name="close" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <View className="mb-6">
+              <Text className="text-base text-gray-700 mb-4">
+                Enter the User ID of the healthcare provider (doctor, checkup center, or med store) who will manage your appointments and medical records:
+              </Text>
+              
+              <View className="border border-gray-300 rounded-xl p-4 mb-4">
+                <TextInput
+                  value={adminUserId}
+                  onChangeText={setAdminUserId}
+                  placeholder="Enter provider user ID (e.g., SMITH123)"
+                  className="text-base text-gray-800"
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                />
+              </View>
+
+              <Text className="text-sm text-gray-500 mb-6">
+                💡 You can find the provider's User ID on their detail page by tapping the copy button next to their User ID.
+              </Text>
+            </View>
+
+            <View className="flex-row space-x-3">
+              <TouchableOpacity
+                onPress={() => setShowAssignModal(false)}
+                className="flex-1 bg-gray-100 p-4 rounded-xl"
+              >
+                <Text className="text-center text-gray-700 font-semibold">Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={handleAssignToAdmin}
+                disabled={isAssigning || !adminUserId.trim()}
+                className="flex-1 p-4 rounded-xl"
+                style={{ 
+                  backgroundColor: (!adminUserId.trim() || isAssigning) ? '#D1D5DB' : APP_CONFIG.THEME_COLOR 
+                }}
+              >
+                {isAssigning ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text className="text-center text-white font-semibold">Assign</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 } 

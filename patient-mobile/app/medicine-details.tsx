@@ -10,16 +10,27 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../lib/authContext';
 import { apiService } from '../lib/api';
 import { APP_CONFIG } from '../lib/config';
 import { MedicineSchedule } from '../lib/types';
+import TimePicker from '../components/TimePicker';
+
+interface CustomReminderTime {
+  medicineItemId: string;
+  times: string[];
+}
 
 export default function MedicineDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { authState } = useAuth();
   const [schedule, setSchedule] = useState<MedicineSchedule | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [customReminderTimes, setCustomReminderTimes] = useState<CustomReminderTime[]>([]);
+  const [timePickerVisible, setTimePickerVisible] = useState(false);
+  const [selectedMedicineItem, setSelectedMedicineItem] = useState<any>(null);
+  const [selectedTimeIndex, setSelectedTimeIndex] = useState<number>(0);
 
   useEffect(() => {
     if (!id) {
@@ -28,6 +39,7 @@ export default function MedicineDetailsScreen() {
       return;
     }
     fetchScheduleDetails();
+    loadCustomReminderTimes();
   }, [id]);
 
   const fetchScheduleDetails = async () => {
@@ -51,6 +63,96 @@ export default function MedicineDetailsScreen() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const loadCustomReminderTimes = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(`custom_reminder_times_${id}`);
+      if (stored) {
+        setCustomReminderTimes(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.error('Error loading custom reminder times:', error);
+    }
+  };
+
+  const saveCustomReminderTimes = async (times: CustomReminderTime[]) => {
+    try {
+      await AsyncStorage.setItem(`custom_reminder_times_${id}`, JSON.stringify(times));
+      setCustomReminderTimes(times);
+    } catch (error) {
+      console.error('Error saving custom reminder times:', error);
+      Alert.alert('Error', 'Failed to save reminder times');
+    }
+  };
+
+  const getCustomTimesForMedicine = (medicineItemId: string): string[] => {
+    const customTimes = customReminderTimes.find(ct => ct.medicineItemId === medicineItemId);
+    return customTimes?.times || [];
+  };
+
+  const generateDefaultTimes = (timesPerDay: number): string[] => {
+    const times = [];
+    const intervalHours = 24 / timesPerDay;
+    
+    for (let i = 0; i < timesPerDay; i++) {
+      const hour = Math.floor(8 + (i * intervalHours)) % 24; // Start from 8 AM
+      times.push(`${hour.toString().padStart(2, '0')}:00`);
+    }
+    
+    return times;
+  };
+
+  const getReminderTimesForMedicine = (item: any): string[] => {
+    const customTimes = getCustomTimesForMedicine(item.id);
+    if (customTimes.length > 0) {
+      return customTimes;
+    }
+    return generateDefaultTimes(item.timesPerDay);
+  };
+
+  const handleSetCustomTime = (medicineItem: any, timeIndex: number) => {
+    setSelectedMedicineItem(medicineItem);
+    setSelectedTimeIndex(timeIndex);
+    setTimePickerVisible(true);
+  };
+
+  const handleTimeSelect = (selectedTime: string) => {
+    if (!selectedMedicineItem) return;
+
+    const currentTimes = getReminderTimesForMedicine(selectedMedicineItem);
+    const newTimes = [...currentTimes];
+    newTimes[selectedTimeIndex] = selectedTime;
+
+    const updatedCustomTimes = customReminderTimes.filter(
+      ct => ct.medicineItemId !== selectedMedicineItem.id
+    );
+    updatedCustomTimes.push({
+      medicineItemId: selectedMedicineItem.id,
+      times: newTimes,
+    });
+
+    saveCustomReminderTimes(updatedCustomTimes);
+  };
+
+  const handleResetToDefault = (medicineItem: any) => {
+    Alert.alert(
+      'Reset to Default',
+      'This will reset reminder times to the default schedule. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: () => {
+            const updatedCustomTimes = customReminderTimes.filter(
+              ct => ct.medicineItemId !== medicineItem.id
+            );
+            saveCustomReminderTimes(updatedCustomTimes);
+          },
+        },
+      ]
+    );
   };
 
   const formatDate = (dateString: string) => {
@@ -80,17 +182,33 @@ export default function MedicineDetailsScreen() {
   };
 
   const getNextDoseTime = (item: any) => {
-    // This is a simplified calculation - in a real app, you'd track actual dose times
+    const reminderTimes = getReminderTimesForMedicine(item);
     const now = new Date();
-    const hoursInDay = 24;
-    const intervalHours = hoursInDay / item.timesPerDay;
-    const nextHour = Math.ceil(now.getHours() / intervalHours) * intervalHours;
-    const nextDose = new Date(now);
-    nextDose.setHours(nextHour % 24, 0, 0, 0);
-    if (nextHour >= 24) {
+    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    
+    // Find the next reminder time today
+    const nextTimeToday = reminderTimes.find(time => time > currentTime);
+    
+    if (nextTimeToday) {
+      const [hour, minute] = nextTimeToday.split(':').map(Number);
+      const nextDose = new Date(now);
+      nextDose.setHours(hour, minute, 0, 0);
+      return nextDose;
+    } else {
+      // Next dose is tomorrow's first reminder
+      const [hour, minute] = reminderTimes[0].split(':').map(Number);
+      const nextDose = new Date(now);
       nextDose.setDate(nextDose.getDate() + 1);
+      nextDose.setHours(hour, minute, 0, 0);
+      return nextDose;
     }
-    return nextDose;
+  };
+
+  const formatDisplayTime = (time: string) => {
+    const [hour, minute] = time.split(':').map(Number);
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
   };
 
   const handleConfirmMedicine = async (itemId: string) => {
@@ -218,86 +336,134 @@ export default function MedicineDetailsScreen() {
             Medicines ({schedule.items.length})
           </Text>
           
-          {schedule.items.map((item, index) => (
-            <View key={item.id} className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-              <View className="flex-row items-start justify-between mb-3">
-                <View className="flex-1 mr-4">
-                  <Text className="text-lg font-semibold text-gray-800 mb-1">
-                    {item.medicineName}
-                  </Text>
-                  <Text className="text-sm text-gray-600 mb-2">
-                    Dosage: {item.dosage}
-                  </Text>
-                </View>
-                <View className="items-center">
-                  <Text className="text-sm text-gray-600">Times per day</Text>
-                  <Text 
-                    className="text-xl font-bold"
-                    style={{ color: APP_CONFIG.THEME_COLOR }}
-                  >
-                    {item.timesPerDay}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Dosing Schedule */}
-              <View className="mb-3">
-                <Text className="text-sm font-medium text-gray-700 mb-2">Dosing Schedule</Text>
-                <View className="flex-row items-center">
-                  <Ionicons name="alarm-outline" size={16} color="#6B7280" />
-                  <Text className="text-sm text-gray-600 ml-2">
-                    Every {Math.round(24 / item.timesPerDay)} hours
-                    {item.gapBetweenDays > 0 && `, with ${item.gapBetweenDays} day gap`}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Next Dose (only for active schedules) */}
-              {isActive && (
-                <View className="mb-3">
-                  <Text className="text-sm font-medium text-gray-700 mb-2">Next Dose</Text>
-                  <Text 
-                    className="text-sm font-semibold"
-                    style={{ color: APP_CONFIG.THEME_COLOR }}
-                  >
-                    {getNextDoseTime(item).toLocaleTimeString('en-IN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </Text>
-                </View>
-              )}
-
-              {/* Item Notes */}
-              {item.notes && (
-                <View className="mb-3 p-3 bg-blue-50 rounded-lg">
-                  <Text className="text-sm font-medium text-blue-800 mb-1">Special Instructions</Text>
-                  <Text className="text-sm text-blue-700">"{item.notes}"</Text>
-                </View>
-              )}
-
-              {/* Confirm Button (only for active schedules) */}
-              {isActive && (
-                <TouchableOpacity
-                  onPress={() => handleConfirmMedicine(item.id)}
-                  className="mt-3 p-3 rounded-lg"
-                  style={{ backgroundColor: `${APP_CONFIG.THEME_COLOR}15` }}
-                >
-                  <View className="flex-row items-center justify-center">
-                    <Ionicons name="checkmark-circle" size={20} color={APP_CONFIG.THEME_COLOR} />
-                    <Text 
-                      className="ml-2 font-semibold"
-                      style={{ color: APP_CONFIG.THEME_COLOR }}
-                    >
-                      Mark as Taken
+          {schedule.items.map((item, index) => {
+            const reminderTimes = getReminderTimesForMedicine(item);
+            const hasCustomTimes = getCustomTimesForMedicine(item.id).length > 0;
+            
+            return (
+              <View key={item.id} className="bg-white rounded-xl p-4 mb-4 shadow-sm">
+                <View className="flex-row items-start justify-between mb-3">
+                  <View className="flex-1 mr-4">
+                    <Text className="text-lg font-semibold text-gray-800 mb-1">
+                      {item.medicineName}
+                    </Text>
+                    <Text className="text-sm text-gray-600 mb-2">
+                      Dosage: {item.dosage}
                     </Text>
                   </View>
-                </TouchableOpacity>
-              )}
-            </View>
-          ))}
+                  <View className="items-center">
+                    <Text className="text-sm text-gray-600">Times per day</Text>
+                    <Text 
+                      className="text-xl font-bold"
+                      style={{ color: APP_CONFIG.THEME_COLOR }}
+                    >
+                      {item.timesPerDay}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Custom Reminder Times */}
+                <View className="mb-3">
+                  <View className="flex-row items-center justify-between mb-3">
+                    <Text className="text-sm font-medium text-gray-700">Reminder Times</Text>
+                    <View className="flex-row items-center">
+                      {hasCustomTimes && (
+                        <TouchableOpacity
+                          onPress={() => handleResetToDefault(item)}
+                          className="mr-3"
+                        >
+                          <Text className="text-xs text-blue-600">Reset to Default</Text>
+                        </TouchableOpacity>
+                      )}
+                      <View className={`px-2 py-1 rounded-full ${
+                        hasCustomTimes ? 'bg-green-100' : 'bg-gray-100'
+                      }`}>
+                        <Text className={`text-xs font-medium ${
+                          hasCustomTimes ? 'text-green-700' : 'text-gray-600'
+                        }`}>
+                          {hasCustomTimes ? 'Custom' : 'Default'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  
+                  <View className="flex-row flex-wrap gap-2">
+                    {reminderTimes.map((time, timeIndex) => (
+                      <TouchableOpacity
+                        key={timeIndex}
+                        onPress={() => handleSetCustomTime(item, timeIndex)}
+                        className="flex-row items-center px-3 py-2 rounded-lg border border-gray-200 bg-gray-50"
+                      >
+                        <Ionicons name="alarm-outline" size={16} color="#6B7280" />
+                        <Text className="ml-2 text-sm font-medium text-gray-700">
+                          {formatDisplayTime(time)}
+                        </Text>
+                        <Ionicons name="pencil" size={12} color="#9CA3AF" className="ml-1" />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  
+                  <Text className="text-xs text-gray-500 mt-2">
+                    Tap any time to customize your reminder schedule
+                  </Text>
+                </View>
+
+                {/* Next Dose (only for active schedules) */}
+                {isActive && (
+                  <View className="mb-3">
+                    <Text className="text-sm font-medium text-gray-700 mb-2">Next Dose</Text>
+                    <Text 
+                      className="text-sm font-semibold"
+                      style={{ color: APP_CONFIG.THEME_COLOR }}
+                    >
+                      {getNextDoseTime(item).toLocaleTimeString('en-IN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Item Notes */}
+                {item.notes && (
+                  <View className="mb-3 p-3 bg-blue-50 rounded-lg">
+                    <Text className="text-sm font-medium text-blue-800 mb-1">Special Instructions</Text>
+                    <Text className="text-sm text-blue-700">"{item.notes}"</Text>
+                  </View>
+                )}
+
+                {/* Confirm Button (only for active schedules) */}
+                {isActive && (
+                  <TouchableOpacity
+                    onPress={() => handleConfirmMedicine(item.id)}
+                    className="mt-3 p-3 rounded-lg"
+                    style={{ backgroundColor: `${APP_CONFIG.THEME_COLOR}15` }}
+                  >
+                    <View className="flex-row items-center justify-center">
+                      <Ionicons name="checkmark-circle" size={20} color={APP_CONFIG.THEME_COLOR} />
+                      <Text 
+                        className="ml-2 font-semibold"
+                        style={{ color: APP_CONFIG.THEME_COLOR }}
+                      >
+                        Mark as Taken
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })}
         </View>
       </ScrollView>
+
+      {/* Time Picker Modal */}
+      <TimePicker
+        visible={timePickerVisible}
+        onClose={() => setTimePickerVisible(false)}
+        onTimeSelect={handleTimeSelect}
+        selectedTime={selectedMedicineItem ? getReminderTimesForMedicine(selectedMedicineItem)[selectedTimeIndex] : undefined}
+        title="Set Reminder Time"
+      />
     </View>
   );
 } 

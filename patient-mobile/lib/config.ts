@@ -8,8 +8,8 @@ export const API_CONFIG = {
 };
 
 export const SUPABASE_CONFIG = {
-  URL: 'your-supabase-url',
-  ANON_KEY: 'your-supabase-anon-key',
+  URL: 'https://eitgcswuhgbwycorhkpr.supabase.co',
+  ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVpdGdjc3d1aGdid3ljb3Joa3ByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4OTQyNTQsImV4cCI6MjA2MzQ3MDI1NH0.26l1wufMBneHZbnwKxRqzcANQlwrISiKbtP5zNadiwE',
   BUCKET_NAME: 'documents',
 };
 

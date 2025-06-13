@@ -80,6 +80,70 @@ export interface MedicineReminder {
   notes?: string;
 }
 
+export interface MedDocument {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  documentType: 'PRESCRIPTION' | 'MEDICAL_REPORT';
+  seekAvailability: boolean;
+  patientId: string;
+  uploadedById: string;
+  uploaderType: 'PATIENT' | 'DOCTOR' | 'CHECKUP_CENTER';
+  permittedDoctorIds: string[];
+  permittedCheckupCenterIds: string[];
+  description?: string;
+  doctorId?: string;
+  checkupCenterId?: string;
+  patientUploaderId?: string;
+  createdAt: string;
+  updatedAt: string;
+  // Related entities
+  patient?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  doctor?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  checkupCenter?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  patientUploader?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  // Med store hand raises
+  medStoreHandRaises?: {
+    id: string;
+    medStoreId: string;
+    medDocumentId: string;
+    status: string;
+    createdAt: string;
+    medStore: {
+      id: string;
+      name: string;
+      email: string;
+      phone: string;
+      city: string;
+      state: string;
+    };
+  }[];
+}
+
+export interface DocumentUploadData {
+  fileName: string;
+  fileUrl: string;
+  documentType: 'PRESCRIPTION' | 'MEDICAL_REPORT';
+  description?: string;
+  seekAvailability?: boolean;
+}
+
 export interface Appointment {
   id: string;
   patientId: string;
@@ -198,7 +262,6 @@ export interface NotificationConfig {
   type: 'MEDICINE' | 'APPOINTMENT';
   title: string;
   body: string;
-  scheduledTime: Date;
   data: {
     medicineItemId?: string;
     appointmentId?: string;
@@ -239,7 +302,6 @@ export interface HomeRecommendations {
   todayAppointments: Appointment[];
 }
 
-// Navigation types
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
@@ -248,6 +310,10 @@ export type RootStackParamList = {
   Medicines: undefined;
   Appointments: undefined;
   Calendar: undefined;
+  Documents: undefined;
+  DocumentDetails: { documentId: string };
+  DocumentUpload: undefined;
+  DocumentPermissions: { documentId: string };
   Search: { type?: 'DOCTOR' | 'HOSPITAL' | 'MEDSTORE' | 'CHECKUP_CENTER' };
   Alarm: { reminder: MedicineReminder } | { appointment: Appointment };
   DoctorDetails: { doctorId: string };
@@ -255,7 +321,6 @@ export type RootStackParamList = {
   Settings: undefined;
 };
 
-// Alarm types
 export interface AlarmData {
   type: 'MEDICINE' | 'APPOINTMENT';
   id: string;

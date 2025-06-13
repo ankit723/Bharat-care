@@ -345,6 +345,18 @@ export default function MedicinesScreen() {
                 History ({completedSchedules.length})
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/my-medicine-requests')}
+              className={`flex-1 py-3 rounded-lg items-center ${
+                selectedTab === 'history' ? 'bg-white shadow-sm' : ''
+              }`}
+            >
+              <Text className={`font-medium ${
+                selectedTab === 'history' ? 'text-gray-800' : 'text-gray-600'
+              }`}>
+                Requests
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 

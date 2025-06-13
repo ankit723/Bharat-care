@@ -52,7 +52,9 @@
       [
         "expo-background-fetch",
         {
-          "backgroundModes": ["background-fetch"]
+          "backgroundModes": [
+            "background-fetch"
+          ]
         }
       ],
       [
@@ -72,6 +74,12 @@
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "fb58e826-09c9-485f-9569-828d69937ea5"
+      }
     }
   }
 }

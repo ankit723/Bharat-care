@@ -88,6 +88,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
         return [
           { href: '/dashboard', label: 'Overview' },
           { href: '/dashboard/admin/verifications', label: 'Verifications' },
+          { href: '/dashboard/documents', label: 'Documents' },
           { href: '/dashboard/admin/reward-settings', label: 'Reward Settings' },
         ];
       default:

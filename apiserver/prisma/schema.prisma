@@ -386,6 +386,9 @@ model Patient {
   // Reward transaction relationship
   rewardTransactions RewardTransaction[] @relation("PatientRewardTransactions")
 
+  // Admin assignments
+  adminAssignments PatientAdminAssignment[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -433,6 +436,9 @@ model Admin {
   
   // Reward transaction relationship
   rewardTransactions RewardTransaction[] @relation("AdminRewardTransactions")
+
+  // Patient assignments
+  patientAssignments PatientAdminAssignment[]
 }
 
 // New model for tracking referrals
@@ -571,4 +577,25 @@ model RewardSetting {
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// Model for tracking patient assignments to admin users
+model PatientAdminAssignment {
+  id          String   @id @default(uuid())
+  
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  adminUserId String
+  admin       Admin    @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  
+  assignedAt  DateTime @default(now())
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([patientId, adminUserId])
+  @@index([patientId])
+  @@index([adminUserId])
 }

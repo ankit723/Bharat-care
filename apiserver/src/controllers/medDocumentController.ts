@@ -104,6 +104,20 @@ export const getMedDocuments = async (req: Request, res: Response): Promise<void
         doctor: { select: { id: true, name: true, email: true } },
         checkupCenter: { select: { id: true, name: true, email: true } },
         patientUploader: { select: { id: true, name: true, email: true } },
+        medStoreHandRaises: {
+          include: {
+            medStore: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                city: true,
+                state: true,
+              }
+            }
+          }
+        }
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -147,6 +161,20 @@ export const getMedDocumentById = async (req: Request, res: Response): Promise<v
             doctor: { select: { id: true, name: true, email: true } },
             checkupCenter: { select: { id: true, name: true, email: true } },
             patientUploader: { select: { id: true, name: true, email: true } },
+            medStoreHandRaises: {
+              include: {
+                medStore: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    phone: true,
+                    city: true,
+                    state: true,
+                  }
+                }
+              }
+            }
         }
     });
 

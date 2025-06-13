@@ -13,7 +13,9 @@ import {
   reviewRoutes,
   medDocumentRoutes,
   medicineScheduleRoutes,
-  rewardRoutes
+  rewardRoutes,
+  prescriptionRoutes,
+  globalMedicineRoutes
 } from './routes/index'
 import config from './config/index'
 import adminRoutes from './routes/adminRoutes'
@@ -46,11 +48,16 @@ app.use('/api/med-documents', medDocumentRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/medicine-schedules', medicineScheduleRoutes)
 app.use('/api/rewards', rewardRoutes)
+app.use('/api/prescriptions', prescriptionRoutes)
+app.use('/api/global-medicine', globalMedicineRoutes)
 
 // New patient mobile app routes
 app.use('/api/home', homeRoutes)
 app.use('/api/appointments', appointmentRoutes)
 app.use('/api/search', searchRoutes)
+
+// Serve uploaded files statically
+app.use('/uploads', express.static('uploads'))
 
 // Add a ping endpoint for testing connectivity
 app.get('/api/ping', (req: Request, res: Response) => {
