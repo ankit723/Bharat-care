@@ -13,4 +13,9 @@ adminController_1.getPendingVerifications);
 // Update verification status for a specific entity
 router.patch('/verification/:entityType/:entityId', authMiddleware_1.authenticate, authMiddleware_1.authorizeAdmin, // Protect this route for admins only
 adminController_1.updateVerificationStatus);
+// Admin document management routes
+router.get('/documents', authMiddleware_1.authenticate, authMiddleware_1.authorizeAdmin, adminController_1.getAdminDocuments);
+router.get('/documents/stats', authMiddleware_1.authenticate, authMiddleware_1.authorizeAdmin, adminController_1.getDocumentStats);
+router.get('/documents/:id', authMiddleware_1.authenticate, authMiddleware_1.authorizeAdmin, adminController_1.getAdminDocumentById);
+router.delete('/documents/:id', authMiddleware_1.authenticate, authMiddleware_1.authorizeAdmin, adminController_1.deleteAdminDocument);
 exports.default = router;

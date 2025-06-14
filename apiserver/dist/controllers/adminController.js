@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateVerificationStatus = exports.getPendingVerifications = void 0;
+exports.deleteAdminDocument = exports.getAdminDocumentById = exports.getDocumentStats = exports.getAdminDocuments = exports.updateVerificationStatus = exports.getPendingVerifications = void 0;
 const db_1 = __importDefault(require("../utils/db"));
 const mapToVerifiableEntity = (entity, entityType, userFriendlyRole) => {
     // Ensure all fields exist, providing defaults or handling nulls where necessary
@@ -113,3 +113,219 @@ const updateVerificationStatus = async (req, res) => {
     }
 };
 exports.updateVerificationStatus = updateVerificationStatus;
+// Admin function to get all documents with filters
+const getAdminDocuments = async (req, res) => {
+    try {
+        const { documentType, uploaderType, patientId, limit = '50', offset = '0' } = req.query;
+        const where = {};
+        if (documentType && documentType !== 'ALL') {
+            where.documentType = documentType;
+        }
+        if (uploaderType && uploaderType !== 'ALL') {
+            where.uploaderType = uploaderType;
+        }
+        if (patientId) {
+            where.patientId = patientId;
+        }
+        const documents = await db_1.default.medDocument.findMany({
+            where,
+            include: {
+                patient: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+                doctor: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+                checkupCenter: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+                patientUploader: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+            take: parseInt(limit),
+            skip: parseInt(offset),
+        });
+        res.json(documents);
+    }
+    catch (error) {
+        console.error('Error fetching admin documents:', error);
+        res.status(500).json({ error: 'Failed to fetch documents' });
+    }
+};
+exports.getAdminDocuments = getAdminDocuments;
+// Admin function to get document statistics
+const getDocumentStats = async (req, res) => {
+    try {
+        // Get current date for monthly stats
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        // Fetch all stats in parallel
+        const [totalDocuments, prescriptions, medicalReports, documentsThisMonth, totalPatients, documentsWithPermissions,] = await Promise.all([
+            // Total documents
+            db_1.default.medDocument.count(),
+            // Prescriptions count
+            db_1.default.medDocument.count({
+                where: { documentType: 'PRESCRIPTION' },
+            }),
+            // Medical reports count
+            db_1.default.medDocument.count({
+                where: { documentType: 'MEDICAL_REPORT' },
+            }),
+            // Documents uploaded this month
+            db_1.default.medDocument.count({
+                where: {
+                    createdAt: {
+                        gte: startOfMonth,
+                    },
+                },
+            }),
+            // Total unique patients with documents
+            db_1.default.medDocument.findMany({
+                select: { patientId: true },
+                distinct: ['patientId'],
+            }),
+            // Documents with permissions (either doctor or checkup center permissions)
+            db_1.default.medDocument.count({
+                where: {
+                    OR: [
+                        {
+                            permittedDoctorIds: {
+                                isEmpty: false,
+                            },
+                        },
+                        {
+                            permittedCheckupCenterIds: {
+                                isEmpty: false,
+                            },
+                        },
+                        {
+                            seekAvailability: true,
+                        },
+                    ],
+                },
+            }),
+        ]);
+        // Calculate average documents per patient
+        const averageDocumentsPerPatient = totalPatients.length > 0
+            ? totalDocuments / totalPatients.length
+            : 0;
+        const stats = {
+            totalDocuments,
+            prescriptions,
+            medicalReports,
+            documentsThisMonth,
+            averageDocumentsPerPatient,
+            documentsWithPermissions,
+        };
+        res.json(stats);
+    }
+    catch (error) {
+        console.error('Error fetching document stats:', error);
+        res.status(500).json({ error: 'Failed to fetch document statistics' });
+    }
+};
+exports.getDocumentStats = getDocumentStats;
+// Admin function to get a single document
+const getAdminDocumentById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id) {
+            res.status(400).json({ error: 'Document ID is required' });
+            return;
+        }
+        const document = await db_1.default.medDocument.findUnique({
+            where: { id },
+            include: {
+                patient: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+                doctor: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+                checkupCenter: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+                patientUploader: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+            },
+        });
+        if (!document) {
+            res.status(404).json({ error: 'Document not found' });
+            return;
+        }
+        res.json(document);
+    }
+    catch (error) {
+        console.error('Error fetching admin document:', error);
+        res.status(500).json({ error: 'Failed to fetch document' });
+    }
+};
+exports.getAdminDocumentById = getAdminDocumentById;
+// Admin function to delete a document
+const deleteAdminDocument = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id) {
+            res.status(400).json({ error: 'Document ID is required' });
+            return;
+        }
+        // First, check if the document exists
+        const existingDocument = await db_1.default.medDocument.findUnique({
+            where: { id },
+        });
+        if (!existingDocument) {
+            res.status(404).json({ error: 'Document not found' });
+            return;
+        }
+        // Delete the document record
+        await db_1.default.medDocument.delete({
+            where: { id },
+        });
+        res.json({
+            success: true,
+            message: 'Document deleted successfully'
+        });
+    }
+    catch (error) {
+        console.error('Error deleting admin document:', error);
+        res.status(500).json({ error: 'Failed to delete document' });
+    }
+};
+exports.deleteAdminDocument = deleteAdminDocument;

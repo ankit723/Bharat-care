@@ -244,12 +244,12 @@ export const getDocumentStats = async (req: Request, res: Response): Promise<voi
           OR: [
             {
               permittedDoctorIds: {
-                not: [],
+                isEmpty: false,
               },
             },
             {
               permittedCheckupCenterIds: {
-                not: [],
+                isEmpty: false,
               },
             },
             {
