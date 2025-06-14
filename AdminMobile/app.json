@@ -21,7 +21,21 @@
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#00d5b9"
       },
-      "package": "com.techmorphers.bharatcare"
+      "package": "com.techmorphers.bharatcare",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "bharatcareadmin"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -37,7 +51,9 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
+      "router": {
+        "origin": false
+      },
       "eas": {
         "projectId": "40e0e936-db71-4642-ac60-78315dca0f1c"
       }

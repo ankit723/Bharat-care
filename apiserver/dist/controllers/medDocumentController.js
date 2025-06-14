@@ -104,6 +104,20 @@ const getMedDocuments = async (req, res) => {
                 doctor: { select: { id: true, name: true, email: true } },
                 checkupCenter: { select: { id: true, name: true, email: true } },
                 patientUploader: { select: { id: true, name: true, email: true } },
+                medStoreHandRaises: {
+                    include: {
+                        medStore: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                                phone: true,
+                                city: true,
+                                state: true,
+                            }
+                        }
+                    }
+                }
             },
             orderBy: { createdAt: 'desc' },
         });
@@ -150,6 +164,20 @@ const getMedDocumentById = async (req, res) => {
                 doctor: { select: { id: true, name: true, email: true } },
                 checkupCenter: { select: { id: true, name: true, email: true } },
                 patientUploader: { select: { id: true, name: true, email: true } },
+                medStoreHandRaises: {
+                    include: {
+                        medStore: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                                phone: true,
+                                city: true,
+                                state: true,
+                            }
+                        }
+                    }
+                }
             }
         });
         if (!document) {

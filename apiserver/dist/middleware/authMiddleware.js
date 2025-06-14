@@ -10,7 +10,6 @@ const config_1 = __importDefault(require("../config"));
 // In a real application, you would validate JWT tokens or other auth mechanisms
 const authenticate = (req, res, next) => {
     const authHeader = req.headers.authorization;
-    console.log(authHeader);
     if (!authHeader) {
         res.status(401).json({ error: 'Authorization header is required' });
         return;
@@ -25,7 +24,6 @@ const authenticate = (req, res, next) => {
     try {
         // Verify and decode the token
         const decoded = jsonwebtoken_1.default.verify(token, config_1.default.jwtSecret || 'your-secret-key');
-        console.log("decoded", decoded);
         // Set user information in request
         req.user = {
             userId: decoded.id,

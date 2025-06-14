@@ -50,8 +50,8 @@ const publicRoutes = [
 
 async function checkVerificationStatus(token: string) {
   try {
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:9001';
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },

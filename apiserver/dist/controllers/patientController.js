@@ -3,8 +3,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deletePatient = exports.updatePatient = exports.createPatient = exports.getPatientById = exports.getPatients = void 0;
+exports.updateCurrentPatientProfile = exports.getCurrentPatientProfile = exports.deletePatient = exports.updatePatient = exports.createPatient = exports.getPatientById = exports.getPatients = void 0;
 const db_1 = __importDefault(require("../utils/db"));
+const client_1 = require("@prisma/client");
 // Get all patients
 const getPatients = async (req, res) => {
     try {
@@ -144,3 +145,136 @@ const deletePatient = async (req, res) => {
     }
 };
 exports.deletePatient = deletePatient;
+// Get current patient's profile with assigned providers
+const getCurrentPatientProfile = async (req, res) => {
+    try {
+        const patientId = req.user?.userId;
+        const userRole = req.user?.role;
+        if (!patientId || (userRole !== client_1.Role.PATIENT && userRole !== 'patient')) {
+            res.status(403).json({ error: 'Only patients can access their profile' });
+            return;
+        }
+        const patient = await db_1.default.patient.findUnique({
+            where: { id: patientId },
+            include: {
+                doctors: {
+                    select: {
+                        id: true,
+                        userId: true,
+                        name: true,
+                        specialization: true,
+                        phone: true,
+                        email: true,
+                        addressLine: true,
+                        city: true,
+                        state: true,
+                        verificationStatus: true,
+                    },
+                },
+                hospitals: {
+                    select: {
+                        id: true,
+                        userId: true,
+                        name: true,
+                        phone: true,
+                        email: true,
+                        addressLine: true,
+                        city: true,
+                        state: true,
+                        verificationStatus: true,
+                    },
+                },
+                checkupCenters: {
+                    select: {
+                        id: true,
+                        userId: true,
+                        name: true,
+                        phone: true,
+                        email: true,
+                        addressLine: true,
+                        city: true,
+                        state: true,
+                        verificationStatus: true,
+                    },
+                },
+                medicineSchedules: {
+                    include: {
+                        items: true,
+                    },
+                    orderBy: {
+                        createdAt: 'desc',
+                    },
+                    take: 10, // Get latest 10 schedules
+                },
+                doctorNextVisit: {
+                    include: {
+                        doctor: {
+                            select: {
+                                id: true,
+                                name: true,
+                                specialization: true,
+                            },
+                        },
+                    },
+                    orderBy: {
+                        nextVisit: 'asc',
+                    },
+                    take: 10, // Get next 10 visits
+                },
+                checkupCenterNextVisit: {
+                    include: {
+                        checkupCenter: {
+                            select: {
+                                id: true,
+                                name: true,
+                            },
+                        },
+                    },
+                    orderBy: {
+                        nextVisit: 'asc',
+                    },
+                    take: 10, // Get next 10 visits
+                },
+            },
+        });
+        if (!patient) {
+            res.status(404).json({ error: 'Patient not found' });
+            return;
+        }
+        // Remove password from response
+        const { password, ...patientWithoutPassword } = patient;
+        console.log('Patient profile:', patientWithoutPassword);
+        res.json(patientWithoutPassword);
+    }
+    catch (error) {
+        console.error('Error fetching patient profile:', error);
+        res.status(500).json({ error: 'Failed to fetch patient profile' });
+    }
+};
+exports.getCurrentPatientProfile = getCurrentPatientProfile;
+// Update current patient's profile
+const updateCurrentPatientProfile = async (req, res) => {
+    try {
+        const patientId = req.user?.userId;
+        const userRole = req.user?.role;
+        if (!patientId || (userRole !== client_1.Role.PATIENT && userRole !== 'patient')) {
+            res.status(403).json({ error: 'Only patients can update their profile' });
+            return;
+        }
+        const updateData = req.body;
+        // Remove sensitive fields that shouldn't be updated through this endpoint
+        const { role, verificationStatus, rewardPoints, ...allowedFields } = updateData;
+        const updatedPatient = await db_1.default.patient.update({
+            where: { id: patientId },
+            data: allowedFields,
+        });
+        // Remove password from response
+        const { password, ...patientWithoutPassword } = updatedPatient;
+        res.json(patientWithoutPassword);
+    }
+    catch (error) {
+        console.error('Error updating patient profile:', error);
+        res.status(500).json({ error: 'Failed to update patient profile' });
+    }
+};
+exports.updateCurrentPatientProfile = updateCurrentPatientProfile;

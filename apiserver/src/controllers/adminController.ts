@@ -127,4 +127,247 @@ export const updateVerificationStatus = async (req: Request, res: Response): Pro
       res.status(500).json({ error: `Failed to update verification status for ${entityType}.` });
     }
   }
+};
+
+// Admin function to get all documents with filters
+export const getAdminDocuments = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { documentType, uploaderType, patientId, limit = '50', offset = '0' } = req.query;
+    
+    const where: any = {};
+
+    if (documentType && documentType !== 'ALL') {
+      where.documentType = documentType;
+    }
+
+    if (uploaderType && uploaderType !== 'ALL') {
+      where.uploaderType = uploaderType;
+    }
+
+    if (patientId) {
+      where.patientId = patientId;
+    }
+
+    const documents = await prisma.medDocument.findMany({
+      where,
+      include: {
+        patient: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        doctor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        checkupCenter: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        patientUploader: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: parseInt(limit as string),
+      skip: parseInt(offset as string),
+    });
+
+    res.json(documents);
+  } catch (error) {
+    console.error('Error fetching admin documents:', error);
+    res.status(500).json({ error: 'Failed to fetch documents' });
+  }
+};
+
+// Admin function to get document statistics
+export const getDocumentStats = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Get current date for monthly stats
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Fetch all stats in parallel
+    const [
+      totalDocuments,
+      prescriptions,
+      medicalReports,
+      documentsThisMonth,
+      totalPatients,
+      documentsWithPermissions,
+    ] = await Promise.all([
+      // Total documents
+      prisma.medDocument.count(),
+      
+      // Prescriptions count
+      prisma.medDocument.count({
+        where: { documentType: 'PRESCRIPTION' },
+      }),
+      
+      // Medical reports count
+      prisma.medDocument.count({
+        where: { documentType: 'MEDICAL_REPORT' },
+      }),
+      
+      // Documents uploaded this month
+      prisma.medDocument.count({
+        where: {
+          createdAt: {
+            gte: startOfMonth,
+          },
+        },
+      }),
+      
+      // Total unique patients with documents
+      prisma.medDocument.findMany({
+        select: { patientId: true },
+        distinct: ['patientId'],
+      }),
+      
+      // Documents with permissions (either doctor or checkup center permissions)
+      prisma.medDocument.count({
+        where: {
+          OR: [
+            {
+              permittedDoctorIds: {
+                not: [],
+              },
+            },
+            {
+              permittedCheckupCenterIds: {
+                not: [],
+              },
+            },
+            {
+              seekAvailability: true,
+            },
+          ],
+        },
+      }),
+    ]);
+
+    // Calculate average documents per patient
+    const averageDocumentsPerPatient = totalPatients.length > 0 
+      ? totalDocuments / totalPatients.length 
+      : 0;
+
+    const stats = {
+      totalDocuments,
+      prescriptions,
+      medicalReports,
+      documentsThisMonth,
+      averageDocumentsPerPatient,
+      documentsWithPermissions,
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching document stats:', error);
+    res.status(500).json({ error: 'Failed to fetch document statistics' });
+  }
+};
+
+// Admin function to get a single document
+export const getAdminDocumentById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      res.status(400).json({ error: 'Document ID is required' });
+      return;
+    }
+
+    const document = await prisma.medDocument.findUnique({
+      where: { id },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        doctor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        checkupCenter: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        patientUploader: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!document) {
+      res.status(404).json({ error: 'Document not found' });
+      return;
+    }
+
+    res.json(document);
+  } catch (error) {
+    console.error('Error fetching admin document:', error);
+    res.status(500).json({ error: 'Failed to fetch document' });
+  }
+};
+
+// Admin function to delete a document
+export const deleteAdminDocument = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      res.status(400).json({ error: 'Document ID is required' });
+      return;
+    }
+
+    // First, check if the document exists
+    const existingDocument = await prisma.medDocument.findUnique({
+      where: { id },
+    });
+
+    if (!existingDocument) {
+      res.status(404).json({ error: 'Document not found' });
+      return;
+    }
+
+    // Delete the document record
+    await prisma.medDocument.delete({
+      where: { id },
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Document deleted successfully' 
+    });
+  } catch (error) {
+    console.error('Error deleting admin document:', error);
+    res.status(500).json({ error: 'Failed to delete document' });
+  }
 }; 

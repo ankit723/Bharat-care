@@ -33,10 +33,14 @@ app.use('/api/med-documents', index_1.medDocumentRoutes);
 app.use('/api/admin', adminRoutes_1.default);
 app.use('/api/medicine-schedules', index_1.medicineScheduleRoutes);
 app.use('/api/rewards', index_1.rewardRoutes);
+app.use('/api/prescriptions', index_1.prescriptionRoutes);
+app.use('/api/global-medicine', index_1.globalMedicineRoutes);
 // New patient mobile app routes
 app.use('/api/home', homeRoutes_1.default);
 app.use('/api/appointments', appointmentRoutes_1.default);
 app.use('/api/search', searchRoutes_1.default);
+// Serve uploaded files statically
+app.use('/uploads', express_1.default.static('uploads'));
 // Add a ping endpoint for testing connectivity
 app.get('/api/ping', (req, res) => {
     // Log request details

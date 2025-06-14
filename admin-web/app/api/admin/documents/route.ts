@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:9001';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,48 +8,37 @@ export async function GET(request: NextRequest) {
     const documentType = searchParams.get('documentType');
     const uploaderType = searchParams.get('uploaderType');
     const patientId = searchParams.get('patientId');
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const limit = searchParams.get('limit') || '50';
+    const offset = searchParams.get('offset') || '0';
 
-    const where: any = {};
+    // Build query parameters for the apiserver
+    const params = new URLSearchParams();
+    if (documentType) params.append('documentType', documentType);
+    if (uploaderType) params.append('uploaderType', uploaderType);
+    if (patientId) params.append('patientId', patientId);
+    params.append('limit', limit);
+    params.append('offset', offset);
 
-    if (documentType && documentType !== 'ALL') {
-      where.documentType = documentType;
-    }
-
-    if (uploaderType && uploaderType !== 'ALL') {
-      where.uploaderType = uploaderType;
-    }
-
-    if (patientId) {
-      where.patientId = patientId;
-    }
-
-    const documents = await prisma.medDocument.findMany({
-      where,
-      include: {
-        patient: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        uploader: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+    // Get the authorization header from the incoming request
+    const authHeader = request.headers.get('authorization');
+    
+    const response = await fetch(`${API_BASE_URL}/api/admin/documents?${params.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authHeader && { 'Authorization': authHeader }),
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: limit,
-      skip: offset,
     });
 
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to fetch documents' }));
+      return NextResponse.json(
+        { error: errorData.error || 'Failed to fetch documents' },
+        { status: response.status }
+      );
+    }
+
+    const documents = await response.json();
     return NextResponse.json(documents);
   } catch (error) {
     console.error('Error fetching documents:', error);
@@ -73,12 +61,27 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete the document record
-    await prisma.medDocument.delete({
-      where: { id: documentId },
+    // Get the authorization header from the incoming request
+    const authHeader = request.headers.get('authorization');
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/documents/${documentId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authHeader && { 'Authorization': authHeader }),
+      },
     });
 
-    return NextResponse.json({ success: true });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to delete document' }));
+      return NextResponse.json(
+        { error: errorData.error || 'Failed to delete document' },
+        { status: response.status }
+      );
+    }
+
+    const result = await response.json();
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error deleting document:', error);
     return NextResponse.json(

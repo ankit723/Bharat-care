@@ -82,7 +82,7 @@ const PatientDashboard = () => {
               {isLoading ? '...' : totalReferrals}
             </div>
             <p className="text-xs text-muted-foreground">
-              People you've referred
+              People you&apos;ve referred
             </p>
           </CardContent>
         </Card>

@@ -162,11 +162,11 @@ export default function DocumentsPage() {
     setIsViewDialogOpen(true);
   };
 
-  const handleDownloadDocument = async (document: MedDocument) => {
+  const handleDownloadDocument = async (medDocument: MedDocument) => {
     try {
       const link = document.createElement('a');
-      link.href = document.fileUrl;
-      link.download = document.fileName;
+      link.href = medDocument.fileUrl;
+      link.download = medDocument.fileName;
       link.target = '_blank';
       document.body.appendChild(link);
       link.click();
@@ -441,7 +441,7 @@ export default function DocumentsPage() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Document</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Are you sure you want to delete "{document.fileName}"? This action cannot be undone.
+                                  Are you sure you want to delete &quot;{document.fileName}&quot;? This action cannot be undone.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>

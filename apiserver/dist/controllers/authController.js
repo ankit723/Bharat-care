@@ -70,14 +70,17 @@ const login = async (req, res) => {
 };
 exports.login = login;
 const register = async (req, res) => {
+    console.log('Registering user', req.body);
     try {
         const { name, email, password, role, phone, addressLine, city, state, pin, country } = req.body;
         if (!name || !email || !password || !role || !phone) {
+            console.log('Required fields are missing', req.body);
             res.status(400).json({ error: 'Required fields are missing' });
             return;
         }
         const normalizedRequestRole = role.toUpperCase();
         if (!Object.values(client_1.Role).includes(normalizedRequestRole)) {
+            console.log('Invalid role specified', req.body);
             res.status(400).json({ error: `Invalid role specified: ${role}. Valid roles are: ${Object.values(client_1.Role).join(', ')}` });
             return;
         }
@@ -89,6 +92,7 @@ const register = async (req, res) => {
             await prisma.patient.findUnique({ where: { email } }) ||
             await prisma.checkupCenter.findUnique({ where: { email } });
         if (existingUserByEmail) {
+            console.log('Email is already registered', req.body);
             res.status(400).json({ error: 'Email is already registered' });
             return;
         }
@@ -132,6 +136,7 @@ const register = async (req, res) => {
                 newUser = await prisma.admin.create({ data: { ...basicUserData } });
                 break;
             default:
+                console.log('Invalid role', req.body);
                 res.status(400).json({ error: 'Invalid role' });
                 return;
         }
